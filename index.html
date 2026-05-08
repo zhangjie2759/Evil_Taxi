@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>绕路司机 Demo</title>
+  <style>
+    :root{
+      --bg:#fff6df;
+      --ink:#21170f;
+      --orange:#f47b20;
+      --orange2:#ffb14a;
+      --brown:#6b3b16;
+      --cream:#fffaf0;
+      --red:#df3b35;
+      --green:#2e9d68;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:
+        radial-gradient(circle at top left, rgba(255,177,74,.45), transparent 30%),
+        linear-gradient(180deg,#fff6df,#f4dfb7);
+      color:var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      overscroll-behavior:none;
+    }
+    .wrap{
+      width:min(100vw, 440px);
+      margin:0 auto;
+      padding:10px 10px 16px;
+    }
+    .title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:8px 4px 8px;
+    }
+    .title h1{
+      margin:0;
+      font-size:20px;
+      line-height:1;
+      letter-spacing:.03em;
+    }
+    .pill{
+      font-size:12px;
+      font-weight:800;
+      color:#fffaf0;
+      background:var(--ink);
+      border:2px solid var(--ink);
+      border-radius:999px;
+      padding:6px 9px;
+      box-shadow:0 3px 0 rgba(0,0,0,.14);
+      white-space:nowrap;
+    }
+    .board{
+      position:relative;
+      background:var(--cream);
+      border:3px solid var(--ink);
+      border-radius:22px;
+      box-shadow:0 8px 0 rgba(33,23,15,.16);
+      overflow:hidden;
+    }
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+      touch-action:none;
+      background:#fff9e9;
+    }
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:8px;
+      padding:12px 0 0;
+    }
+    button{
+      appearance:none;
+      border:3px solid var(--ink);
+      border-radius:16px;
+      min-height:48px;
+      padding:8px 10px;
+      background:#fffaf0;
+      color:var(--ink);
+      font-weight:900;
+      font-size:15px;
+      box-shadow:0 5px 0 rgba(33,23,15,.18);
+      cursor:pointer;
+    }
+    button.primary{
+      background:linear-gradient(180deg,var(--orange2),var(--orange));
+      color:#21170f;
+    }
+    button:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(33,23,15,.18);}
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+      box-shadow:0 5px 0 rgba(33,23,15,.08);
+    }
+    .status{
+      margin-top:10px;
+      min-height:42px;
+      padding:10px 12px;
+      border:3px solid var(--ink);
+      border-radius:16px;
+      background:#fffaf0;
+      font-size:13px;
+      line-height:1.35;
+      font-weight:700;
+    }
+    .tip{
+      margin-top:8px;
+      font-size:12px;
+      line-height:1.45;
+      color:#614225;
+      padding:0 4px;
+    }
+    .tip b{color:var(--ink);}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="title">
+      <h1>🚕 绕路司机</h1>
+      <div class="pill">10关可玩 Demo</div>
+    </div>
+
+    <section class="board">
+      <canvas id="game" width="390" height="680" aria-label="绕路司机游戏画布"></canvas>
+    </section>
+
+    <div class="controls">
+      <button id="resetBtn">重画路线</button>
+      <button id="driveBtn" class="primary" disabled>开始开车</button>
+      <button id="nextBtn" disabled>下一关</button>
+    </div>
+
+    <div id="status" class="status">从起点按住拖动，画一条“看起来合理但其实很绕”的路线。</div>
+    <div class="tip">
+      <b>玩法：</b>路线越长赚得越多；但经过红色“乘客熟悉区/明显反方向区”会增加怀疑值。
+      进入蓝色“合理借口区”可以降低一点怀疑。松手后点击“开始开车”，小车会沿路线跑一遍并实时跳钱。
+    </div>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>
