@@ -84,13 +84,24 @@
   const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
   const routeLen = r => r.reduce((s,p,i)=> i ? s + dist(r[i-1], p) : 0, 0);
   const insideRect = (p,b,pad=0) => p.x>=b[0]-pad && p.x<=b[0]+b[2]+pad && p.y>=b[1]-pad && p.y<=b[1]+b[3]+pad;
-  const inBuilding = p => level().map.blocks.some(b => insideRect(p,b,-1));
+  // Only treat a point as “inside a building” if it is NOT actually on/near a road.
+  // Roads visually pass through some city blocks; the old check marked those road points as buildings,
+  // which made suspicion jump to 100 immediately.
+  const inBuilding = p => level().map.blocks.some(b => insideRect(p,b,-1)) && nearestRoad(p).d > 18;
   const inMap = p => p.x>=MAP.l+8 && p.x<=MAP.r-8 && p.y>=MAP.t+8 && p.y<=MAP.b-8;
 
   function pointer(evt){ const e=evt.touches?evt.touches[0]:evt; const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}; }
   function segNearest(p,a,b){ const vx=b[0]-a[0],vy=b[1]-a[1], wx=p.x-a[0],wy=p.y-a[1]; const t=clamp((vx*wx+vy*wy)/(vx*vx+vy*vy||1),0,1); const x=a[0]+vx*t,y=a[1]+vy*t; return {x,y,d:Math.hypot(p.x-x,p.y-y)}; }
   function nearestRoad(p){ let best={x:p.x,y:p.y,d:9999,road:null}; for(const r of roads()){ for(let i=1;i<r.points.length;i++){ const n=segNearest(p,r.points[i-1],r.points[i]); if(n.d<best.d) best={...n,road:r}; } } return best; }
-  function snap(p){ if(!inMap(p)) return {ok:false,reason:"路线不能画出地图边界。"}; if(inBuilding(p)) return {ok:false,reason:"建筑物上不能画路线，请沿道路绕过去。"}; const n=nearestRoad(p); if(n.d>34) return {ok:false,reason:"这里只不是道路，路线要沿道路画。"}; if(inBuilding(n)) return {ok:false,reason:"这段路被建筑挡住了。"}; return {ok:true,point:{x:n.x,y:n.y}}; }
+  function snap(p){
+    if(!inMap(p)) return {ok:false,reason:"路线不能画出地图边界。"};
+    const n=nearestRoad(p);
+    if(n.d>34){
+      if(level().map.blocks.some(b => insideRect(p,b,-1))) return {ok:false,reason:"建筑物上不能画路线，请沿道路绕过去。"};
+      return {ok:false,reason:"这里只不是道路，路线要沿道路画。"};
+    }
+    return {ok:true,point:{x:n.x,y:n.y}};
+  }
 
   function inZone(p,z){ return z.type==="circle" ? Math.hypot(p.x-z.x,p.y-z.y)<=z.r : p.x>=z.x&&p.x<=z.x+z.w&&p.y>=z.y&&p.y<=z.y+z.h; }
   function evalRoute(route){
@@ -102,7 +113,8 @@
     for(const z of lv.excuseZones) if(route.some(p=>inZone(p,z))){ suspicion-=z.bonus; hitExcuse.push(z.label); }
     if(ratio>2.05&&!hitExcuse.length) suspicion+=18; if(ratio>2.6) suspicion+=20;
     const hitBuilding=route.some(inBuilding), offRoad=route.some(p=>nearestRoad(p).d>24);
-    if(hitBuilding||offRoad) suspicion+=999;
+    // Do not convert route-validity errors into max suspicion.
+    // Suspicion should reflect “passenger doubt”, while off-road/building errors are handled as invalid routes.
     suspicion=Math.max(0,Math.round(suspicion));
     const money=Math.round(lv.base+length*lv.rate), startOk=dist(route[0],lv.start)<52, endOk=dist(route[route.length-1],lv.end)<55;
     const valid=startOk&&endOk&&!hitBuilding&&!offRoad, fail=valid&&suspicion>=100;
