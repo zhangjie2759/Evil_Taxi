@@ -8,1021 +8,238 @@
   const nextBtn = document.getElementById("nextBtn");
   const statusEl = document.getElementById("status");
 
-  const W = 390;
-  const H = 680;
+  const W = 390, H = 680;
   const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-
   canvas.width = W * DPR;
   canvas.height = H * DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-  const MAP_TOP = 132;
-  const MAP_LEFT = 14;
-  const MAP_W = W - 28;
-  const MAP_H = 470;
-  const MAP_RIGHT = MAP_LEFT + MAP_W;
-  const MAP_BOTTOM = MAP_TOP + MAP_H;
+  const MAP = { l:14, t:132, w:362, h:470 };
+  MAP.r = MAP.l + MAP.w; MAP.b = MAP.t + MAP.h;
 
-  function roadV(x1, y1, y2) { return { kind: "road", points: [[x1,y1],[x1,y2]] }; }
-  function roadH(y1, x1, x2) { return { kind: "road", points: [[x1,y1],[x2,y1]] }; }
-  function roadPath(points) { return { kind: "road", points }; }
-  function waterRect(x,y,w,h) { return { kind: "water", x,y,w,h }; }
-  function parkRect(x,y,w,h) { return { kind: "park", x,y,w,h }; }
-  function landmark(x,y,label,icon="") { return { kind: "landmark", x,y,label,icon }; }
-
-  const map1 = {
-    name: "居住区",
-    blocks: [
-      [34,160,76,68],[126,158,88,70],[238,160,92,66],
-      [35,255,68,78],[126,252,84,74],[236,256,95,76],
-      [36,382,70,70],[129,390,86,65],[238,386,94,72],
-      [36,500,70,70],[132,503,86,66],[246,500,84,70]
-    ],
-    features: [
-      roadV(64,148,586), roadV(116,148,586), roadV(230,148,586), roadV(338,148,586),
-      roadH(185,30,350), roadH(242,30,350), roadH(350,30,350), roadH(480,30,350), roadH(560,30,350),
-      parkRect(146,410,58,38),
-      landmark(70,170,"菜鸟驿站","📦"),
-      landmark(260,284,"便利店","🏪"),
-      landmark(290,520,"小公园","🌳")
-    ]
+  const C = {
+    ink:"#1e1a16", bg:"#f6f4ec", block:"#ece7dc", blockLine:"#d8d1c4",
+    local:"#ffffff", localEdge:"#d7d3cb", main:"#ffd876", mainEdge:"#e9b84e",
+    highway:"#ffb15e", highwayEdge:"#e4872f", route:"#2878ff", water:"#b7ddff", park:"#d8efc9",
+    red:"#df3b35", blue:"#277bdc", green:"#19b66a", yellow:"#ffd64f"
   };
 
-  const map2 = {
-    name: "机场片区",
-    blocks: [
-      [34,176,90,74],[146,172,85,80],[259,174,71,76],
-      [34,284,72,62],[128,286,106,62],[259,282,72,66],
-      [34,386,90,78],[150,390,76,70],[255,386,76,74],
-      [48,502,72,54],[150,506,74,50],[252,506,75,48]
-    ],
-    features: [
-      waterRect(28,150,320,18),
-      roadH(205,28,348), roadH(315,28,348), roadH(420,28,348), roadH(530,48,338),
-      roadV(78,170,556), roadV(145,172,556), roadV(245,170,556), roadV(336,170,556),
-      roadPath([[28,260],[95,260],[95,210],[190,210],[190,150]]),
-      landmark(74,152,"机场航站楼","✈️"),
-      landmark(298,302,"出租车道","🚖"),
-      landmark(285,538,"酒店群","🏨")
-    ]
-  };
+  const R = (points, type="local", label="") => ({kind:"road", points, type, label});
+  const RV = (x,y1,y2,type="local",label="") => R([[x,y1],[x,y2]],type,label);
+  const RH = (y,x1,x2,type="local",label="") => R([[x1,y],[x2,y]],type,label);
+  const B = (x,y,w,h) => [x,y,w,h];
+  const F = (kind,x,y,w,h,label="") => ({kind,x,y,w,h,label});
+  const L = (x,y,label,icon="") => ({kind:"landmark",x,y,label,icon});
 
-  const map3 = {
-    name: "河桥城区",
-    blocks: [
-      [28,165,84,88],[134,166,76,84],[260,165,74,88],
-      [28,382,85,84],[136,380,78,86],[258,382,78,84],
-      [28,505,84,58],[136,505,78,58],[258,505,78,58]
-    ],
-    features: [
-      waterRect(20,278,350,76),
-      roadH(190,26,344), roadH(240,26,344), roadH(480,26,344), roadH(560,26,344),
-      roadV(70,148,270), roadV(70,358,586),
-      roadV(122,148,270), roadV(122,358,586),
-      roadV(230,148,270), roadV(230,358,586),
-      roadV(338,148,270), roadV(338,358,586),
-      roadPath([[70,278],[70,250],[230,250],[230,278]]),
-      roadPath([[122,354],[122,384],[338,384],[338,354]]),
-      roadPath([[230,278],[230,354]]),
-      landmark(176,316,"跨河大桥","🌉"),
-      landmark(54,518,"商场","🛍️"),
-      landmark(312,516,"影院","🎬")
-    ]
-  };
-
-  const map4 = {
-    name: "夜生活街区",
-    blocks: [
-      [32,160,74,68],[120,160,72,68],[208,160,74,68],[294,160,40,68],
-      [34,260,74,72],[122,260,70,72],[208,260,76,72],[298,260,36,72],
-      [34,380,72,84],[122,382,72,82],[208,382,74,82],[294,380,40,84],
-      [34,500,94,65],[152,500,90,65],[266,500,68,65]
-    ],
-    features: [
-      roadV(74,148,586), roadV(160,148,586), roadV(246,148,586), roadV(320,148,586),
-      roadH(188,28,344), roadH(246,28,344), roadH(350,28,344), roadH(480,28,344), roadH(560,28,344),
-      parkRect(274,396,52,46),
-      landmark(58,214,"饭店街","🍢"),
-      landmark(300,406,"夜市","🌙"),
-      landmark(320,215,"家","🏠")
-    ]
-  };
-
-  const map5 = {
-    name: "景区山道",
-    blocks: [
-      [30,160,72,72],[246,160,82,68],
-      [36,300,74,66],[252,296,76,72],
-      [36,432,74,74],[250,432,78,72]
-    ],
-    features: [
-      parkRect(124,150,84,90),
-      parkRect(124,262,84,106),
-      parkRect(124,392,84,90),
-      waterRect(224,505,114,48),
-      roadPath([[60,560],[60,470],[110,470],[110,350],[80,350],[80,250],[120,250],[120,190],[185,190]]),
-      roadPath([[185,190],[245,190],[245,240],[320,240],[320,310]]),
-      roadPath([[110,470],[180,470],[180,410],[245,410],[245,350],[300,350],[300,310]]),
-      roadPath([[180,470],[180,530],[320,530]]),
-      landmark(162,176,"观景台","📸"),
-      landmark(288,520,"湖边","🏞️"),
-      landmark(304,310,"民宿","🏡")
-    ]
-  };
-
-  const map6 = {
-    name: "医院片区",
-    blocks: [
-      [36,170,84,70],[146,170,72,70],[248,170,84,70],
-      [36,276,72,70],[146,278,72,68],[258,278,72,68],
-      [40,404,70,70],[146,404,74,70],[258,404,70,70],
-      [40,516,70,50],[148,516,72,50],[258,516,72,50]
-    ],
-    features: [
-      roadH(205,30,344), roadH(312,30,344), roadH(438,30,344), roadH(540,30,344),
-      roadV(74,152,576), roadV(132,152,576), roadV(236,152,576), roadV(338,152,576),
-      roadPath([[236,152],[236,250],[180,250],[180,312]]),
-      roadPath([[132,438],[180,438],[180,540]]),
-      landmark(78,146,"医院","🏥"),
-      landmark(84,432,"救护车道","🚑"),
-      landmark(300,540,"社区","🏘️")
-    ]
-  };
-
-  const map7 = {
-    name: "老城区",
-    blocks: [
-      [32,155,66,74],[118,160,64,68],[202,156,56,66],[280,154,52,70],
-      [42,262,56,56],[126,260,54,52],[206,262,50,50],[282,258,48,56],
-      [36,362,68,72],[122,364,58,58],[206,362,58,60],[278,358,56,66],
-      [34,480,82,80],[138,486,78,74],[240,482,88,80]
-    ],
-    features: [
-      roadPath([[70,150],[70,580]]),
-      roadPath([[110,185],[340,185]]),
-      roadPath([[110,240],[320,240]]),
-      roadPath([[70,335],[340,335]]),
-      roadPath([[92,450],[340,450]]),
-      roadPath([[140,150],[140,580]]),
-      roadPath([[236,150],[236,580]]),
-      roadPath([[320,150],[320,580]]),
-      roadPath([[70,580],[140,580],[140,520],[236,520],[236,580],[320,580]]),
-      parkRect(50,410,90,80),
-      landmark(76,172,"菜场","🥬"),
-      landmark(298,210,"熟人街","👀"),
-      landmark(294,548,"小区","🏠")
-    ]
-  };
-
-  const map8 = {
-    name: "会展新区",
-    blocks: [
-      [34,170,74,70],[128,170,72,70],[220,170,112,70],
-      [34,278,74,70],[126,278,72,70],[222,278,110,70],
-      [34,390,74,76],[126,390,74,76],[224,390,108,76],
-      [56,510,78,50],[164,510,78,50],[272,510,60,50]
-    ],
-    features: [
-      roadH(205,28,344), roadH(315,28,344), roadH(430,28,344), roadH(530,56,338),
-      roadV(72,154,560), roadV(112,154,560), roadV(212,154,560), roadV(338,154,560),
-      roadPath([[28,350],[180,350],[180,270],[338,270]]),
-      roadPath([[72,430],[72,530],[180,530],[180,430]]),
-      parkRect(250,190,62,42),
-      landmark(58,344,"展馆","🏢"),
-      landmark(295,214,"会议中心","🧭"),
-      landmark(294,532,"酒店","🏨")
-    ]
-  };
-
-  const map9 = {
-    name: "跨江两岸",
-    blocks: [
-      [34,160,76,74],[36,430,76,76],[130,160,86,76],[130,430,86,76],
-      [274,160,56,76],[274,430,56,76]
-    ],
-    features: [
-      waterRect(20,248,350,152),
-      roadH(195,28,344), roadH(540,28,344),
-      roadV(72,150,242), roadV(72,406,576),
-      roadV(174,150,242), roadV(174,406,576),
-      roadV(236,150,242), roadV(236,406,576),
-      roadV(320,150,242), roadV(320,406,576),
-      roadPath([[72,248],[72,290],[156,290],[156,356],[250,356],[250,400]]),
-      roadPath([[174,248],[174,320],[236,320],[236,248]]),
-      roadPath([[320,248],[320,200],[236,200],[236,150]]),
-      landmark(77,540,"码头","⛴️"),
-      landmark(188,318,"大桥","🌉"),
-      landmark(302,160,"公寓","🏢")
-    ]
-  };
-
-  const map10 = {
-    name: "终极城市圈",
-    blocks: [
-      [32,155,60,62],[112,155,68,62],[204,155,56,62],[278,155,54,62],
-      [34,254,56,56],[114,252,62,60],[204,250,58,62],[278,252,54,58],
-      [34,356,56,56],[114,354,62,60],[204,352,58,62],[278,354,54,58],
-      [34,460,60,60],[112,458,66,64],[204,458,58,64],[278,458,54,64],
-      [36,540,58,36],[114,540,60,36],[204,540,56,36],[278,540,54,36]
-    ],
-    features: [
-      roadH(186,28,344), roadH(242,28,344), roadH(338,28,344), roadH(438,28,344), roadH(530,28,344), roadH(576,28,344),
-      roadV(64,148,586), roadV(104,148,586), roadV(190,148,586), roadV(270,148,586), roadV(338,148,586),
-      roadPath([[64,438],[104,438],[104,338],[190,338],[190,242],[270,242],[270,186],[338,186]]),
-      roadPath([[190,576],[190,530],[270,530],[270,438],[338,438],[338,338]]),
-      roadPath([[64,338],[64,242],[104,242],[104,186]]),
-      parkRect(52,338,48,62),
-      waterRect(228,494,104,26),
-      landmark(66,575,"园区","💼"),
-      landmark(286,505,"高架","🛣️"),
-      landmark(320,116,"机场","✈️")
-    ]
-  };
-
-  const levels = [
-    {
-      name: "第1关：新手绕小区",
-      passenger: "赶时间的上班族",
-      map: map1,
-      start: { x: 58, y: 565, label: "小区" },
-      end: { x: 332, y: 160, label: "公司" },
-      base: 8, rate: 0.055, target: 40, maxSuspicion: 82,
-      suspiciousZones: [{ type: "circle", x: 192, y: 350, r: 46, label: "乘客熟悉路", penalty: 28 }],
-      excuseZones: [{ type: "rect", x: 255, y: 335, w: 80, h: 78, label: "修路", bonus: 14 }]
-    },
-    {
-      name: "第2关：机场接单",
-      passenger: "外地游客",
-      map: map2,
-      start: { x: 62, y: 145, label: "机场" },
-      end: { x: 330, y: 535, label: "酒店" },
-      base: 18, rate: 0.06, target: 58, maxSuspicion: 86,
-      suspiciousZones: [
-        { type: "rect", x: 118, y: 238, w: 118, h: 68, label: "机场快线", penalty: 26 },
-        { type: "circle", x: 288, y: 300, r: 34, label: "导航提示", penalty: 18 }
-      ],
-      excuseZones: [{ type: "circle", x: 100, y: 438, r: 44, label: "高架入口", bonus: 13 }]
-    },
-    {
-      name: "第3关：雨天绕桥",
-      passenger: "怕堵车的情侣",
-      map: map3,
-      start: { x: 65, y: 520, label: "商场" },
-      end: { x: 330, y: 500, label: "影院" },
-      base: 10, rate: 0.07, target: 50, maxSuspicion: 78,
-      suspiciousZones: [{ type: "rect", x: 130, y: 456, w: 126, h: 80, label: "直达桥", penalty: 35 }],
-      excuseZones: [{ type: "rect", x: 200, y: 245, w: 110, h: 80, label: "积水绕行", bonus: 18 }]
-    },
-    {
-      name: "第4关：夜宵单",
-      passenger: "喝多的老板",
-      map: map4,
-      start: { x: 55, y: 220, label: "饭店" },
-      end: { x: 330, y: 220, label: "家" },
-      base: 12, rate: 0.075, target: 55, maxSuspicion: 80,
-      suspiciousZones: [
-        { type: "rect", x: 126, y: 180, w: 140, h: 80, label: "一眼直路", penalty: 38 },
-        { type: "circle", x: 194, y: 470, r: 42, label: "熟人街", penalty: 23 }
-      ],
-      excuseZones: [{ type: "circle", x: 305, y: 405, r: 40, label: "夜间施工", bonus: 18 }]
-    },
-    {
-      name: "第5关：景区迷路",
-      passenger: "拍照游客",
-      map: map5,
-      start: { x: 68, y: 565, label: "景区门" },
-      end: { x: 326, y: 310, label: "民宿" },
-      base: 16, rate: 0.065, target: 62, maxSuspicion: 84,
-      suspiciousZones: [{ type: "circle", x: 270, y: 450, r: 50, label: "地图标路", penalty: 30 }],
-      excuseZones: [
-        { type: "rect", x: 78, y: 290, w: 108, h: 76, label: "观景台", bonus: 16 },
-        { type: "circle", x: 246, y: 210, r: 32, label: "单行道", bonus: 9 }
-      ]
-    },
-    {
-      name: "第6关：医院急单",
-      passenger: "有点急的家属",
-      map: map6,
-      start: { x: 330, y: 555, label: "社区" },
-      end: { x: 62, y: 142, label: "医院" },
-      base: 15, rate: 0.06, target: 60, maxSuspicion: 70,
-      suspiciousZones: [{ type: "rect", x: 132, y: 282, w: 132, h: 92, label: "医院主路", penalty: 42 }],
-      excuseZones: [{ type: "circle", x: 85, y: 430, r: 45, label: "救护车道", bonus: 16 }]
-    },
-    {
-      name: "第7关：老城区",
-      passenger: "本地阿姨",
-      map: map7,
-      start: { x: 74, y: 160, label: "菜场" },
-      end: { x: 315, y: 565, label: "小区" },
-      base: 9, rate: 0.082, target: 64, maxSuspicion: 68,
-      suspiciousZones: [
-        { type: "circle", x: 185, y: 330, r: 62, label: "阿姨熟路", penalty: 45 },
-        { type: "rect", x: 248, y: 150, w: 70, h: 82, label: "老邻居", penalty: 20 }
-      ],
-      excuseZones: [{ type: "rect", x: 55, y: 410, w: 95, h: 80, label: "限行", bonus: 20 }]
-    },
-    {
-      name: "第8关：会展中心",
-      passenger: "外企客户",
-      map: map8,
-      start: { x: 55, y: 345, label: "展馆" },
-      end: { x: 333, y: 345, label: "酒店" },
-      base: 20, rate: 0.072, target: 70, maxSuspicion: 75,
-      suspiciousZones: [
-        { type: "rect", x: 132, y: 308, w: 128, h: 76, label: "主干道", penalty: 38 },
-        { type: "circle", x: 295, y: 510, r: 40, label: "导航绿线", penalty: 24 }
-      ],
-      excuseZones: [
-        { type: "circle", x: 102, y: 520, r: 42, label: "环线入口", bonus: 14 },
-        { type: "rect", x: 242, y: 180, w: 88, h: 74, label: "临时管制", bonus: 15 }
-      ]
-    },
-    {
-      name: "第9关：跨江订单",
-      passenger: "开着导航的乘客",
-      map: map9,
-      start: { x: 67, y: 540, label: "码头" },
-      end: { x: 320, y: 150, label: "公寓" },
-      base: 18, rate: 0.075, target: 76, maxSuspicion: 64,
-      suspiciousZones: [
-        { type: "rect", x: 150, y: 315, w: 110, h: 88, label: "最快桥", penalty: 45 },
-        { type: "circle", x: 295, y: 395, r: 38, label: "导航盯着", penalty: 24 }
-      ],
-      excuseZones: [{ type: "rect", x: 52, y: 235, w: 92, h: 75, label: "封桥绕行", bonus: 22 }]
-    },
-    {
-      name: "第10关：终极黑车王",
-      passenger: "很懂路的产品经理",
-      map: map10,
-      start: { x: 60, y: 580, label: "园区" },
-      end: { x: 330, y: 115, label: "机场" },
-      base: 26, rate: 0.082, target: 92, maxSuspicion: 58,
-      suspiciousZones: [
-        { type: "rect", x: 120, y: 365, w: 155, h: 78, label: "官方推荐路", penalty: 45 },
-        { type: "circle", x: 280, y: 245, r: 42, label: "乘客常走", penalty: 28 },
-        { type: "circle", x: 98, y: 210, r: 36, label: "明显反向", penalty: 25 }
-      ],
-      excuseZones: [
-        { type: "rect", x: 205, y: 500, w: 95, h: 70, label: "高架绕行", bonus: 18 },
-        { type: "circle", x: 85, y: 360, r: 42, label: "事故点", bonus: 17 }
-      ]
-    }
+  const maps = [
+    { name:"居住区", district:"朝阳路 / 中山南路",
+      blocks:[B(34,160,76,68),B(126,158,88,70),B(238,160,92,66),B(35,255,68,78),B(126,252,84,74),B(236,256,95,76),B(36,382,70,70),B(129,390,86,65),B(238,386,94,72),B(36,500,70,70),B(132,503,86,66),B(246,500,84,70)],
+      features:[RV(64,148,586),RV(116,148,586),RV(230,148,586,"main","中山路"),RV(338,148,586),RH(185,30,350,"main","人民路"),RH(242,30,350),RH(350,30,350,"main","朝阳路"),RH(480,30,350),RH(560,30,350,"main","环城南路"),F("park",146,410,58,38,"社区公园"),L(260,284,"便利店","🏪")] },
+    { name:"机场片区", district:"机场北路 / 航站大道",
+      blocks:[B(34,176,90,74),B(146,172,85,80),B(259,174,71,76),B(34,284,72,62),B(128,286,106,62),B(259,282,72,66),B(34,386,90,78),B(150,390,76,70),B(255,386,76,74),B(48,502,72,54),B(150,506,74,50),B(252,506,75,48)],
+      features:[RH(205,28,348,"highway","机场高速"),RH(315,28,348,"main","航站大道"),RH(420,28,348,"main","云港路"),RH(530,48,338),RV(78,170,556),RV(145,172,556,"main","机场北路"),RV(245,170,556),RV(336,170,556,"main","迎宾路"),R([[28,260],[95,260],[95,210],[190,210],[190,150]],"main","接机匝道"),L(74,152,"机场","✈️"),L(285,538,"酒店群","🏨")] },
+    { name:"河桥城区", district:"东岸路 / 西岸路",
+      blocks:[B(28,165,84,88),B(134,166,76,84),B(260,165,74,88),B(28,382,85,84),B(136,380,78,86),B(258,382,78,84),B(28,505,84,58),B(136,505,78,58),B(258,505,78,58)],
+      features:[F("water",20,278,350,76,"内河"),RH(190,26,344,"main","北岸路"),RH(240,26,344),RH(480,26,344,"main","南岸路"),RH(560,26,344),RV(70,148,270),RV(70,358,586),RV(122,148,270),RV(122,358,586),RV(230,148,270,"main","东岸路"),RV(230,358,586,"main","东岸路"),RV(338,148,270),RV(338,358,586),R([[70,278],[70,250],[230,250],[230,278]],"main","北桥"),R([[122,354],[122,384],[338,384],[338,354]],"main","南桥"),R([[230,278],[230,354]],"highway","跨河大桥"),L(176,316,"跨河大桥","🌉")] },
+    { name:"夜生活街区", district:"霓虹街 / 后巷",
+      blocks:[B(32,160,74,68),B(120,160,72,68),B(208,160,74,68),B(294,160,40,68),B(34,260,74,72),B(122,260,70,72),B(208,260,76,72),B(298,260,36,72),B(34,380,72,84),B(122,382,72,82),B(208,382,74,82),B(294,380,40,84),B(34,500,94,65),B(152,500,90,65),B(266,500,68,65)],
+      features:[RV(74,148,586,"main","霓虹街"),RV(160,148,586),RV(246,148,586),RV(320,148,586,"main","酒吧街"),RH(188,28,344,"main","饭店路"),RH(246,28,344),RH(350,28,344,"main","后巷"),RH(480,28,344),RH(560,28,344,"main","夜市路"),F("park",274,396,52,46,"小广场"),L(58,214,"饭店街","🍢"),L(300,406,"夜市","🌙")] },
+    { name:"景区山道", district:"山门路 / 湖边线",
+      blocks:[B(30,160,72,72),B(246,160,82,68),B(36,300,74,66),B(252,296,76,72),B(36,432,74,74),B(250,432,78,72)],
+      features:[F("park",124,150,84,90,"山林"),F("park",124,262,84,106,"山林"),F("park",124,392,84,90,"山林"),F("water",224,505,114,48,"景区湖"),R([[60,560],[60,470],[110,470],[110,350],[80,350],[80,250],[120,250],[120,190],[185,190]],"main","盘山路"),R([[185,190],[245,190],[245,240],[320,240],[320,310]],"main","民宿路"),R([[110,470],[180,470],[180,410],[245,410],[245,350],[300,350],[300,310]],"local","湖边支路"),R([[180,470],[180,530],[320,530]],"local","湖岸路"),L(162,176,"观景台","📸"),L(304,310,"民宿","🏡")] },
+    { name:"医院片区", district:"健康路 / 救护车道",
+      blocks:[B(36,170,84,70),B(146,170,72,70),B(248,170,84,70),B(36,276,72,70),B(146,278,72,68),B(258,278,72,68),B(40,404,70,70),B(146,404,74,70),B(258,404,70,70),B(40,516,70,50),B(148,516,72,50),B(258,516,72,50)],
+      features:[RH(205,30,344,"main","健康路"),RH(312,30,344,"main","急诊路"),RH(438,30,344),RH(540,30,344),RV(74,152,576,"main","医院西路"),RV(132,152,576),RV(236,152,576),RV(338,152,576,"main","医院东路"),R([[236,152],[236,250],[180,250],[180,312]],"main","急救通道"),R([[132,438],[180,438],[180,540]],"local","后门小路"),L(78,146,"医院","🏥"),L(84,432,"救护车道","🚑")] },
+    { name:"老城区", district:"菜市口 / 老巷",
+      blocks:[B(32,155,66,74),B(118,160,64,68),B(202,156,56,66),B(280,154,52,70),B(42,262,56,56),B(126,260,54,52),B(206,262,50,50),B(282,258,48,56),B(36,362,68,72),B(122,364,58,58),B(206,362,58,60),B(278,358,56,66),B(34,480,82,80),B(138,486,78,74),B(240,482,88,80)],
+      features:[R([[70,150],[70,580]],"main","菜市口"),R([[110,185],[340,185]]),R([[110,240],[320,240]]),R([[70,335],[340,335]],"main","和平路"),R([[92,450],[340,450]]),R([[140,150],[140,580]]),R([[236,150],[236,580]]),R([[320,150],[320,580]],"main","老城东路"),R([[70,580],[140,580],[140,520],[236,520],[236,580],[320,580]]),F("park",50,410,90,80,"街心公园"),L(76,172,"菜场","🥬"),L(298,210,"熟人街","👀")] },
+    { name:"会展新区", district:"会展大道 / 商务环线",
+      blocks:[B(34,170,74,70),B(128,170,72,70),B(220,170,112,70),B(34,278,74,70),B(126,278,72,70),B(222,278,110,70),B(34,390,74,76),B(126,390,74,76),B(224,390,108,76),B(56,510,78,50),B(164,510,78,50),B(272,510,60,50)],
+      features:[RH(205,28,344,"main","会展大道"),RH(315,28,344,"main","商务路"),RH(430,28,344),RH(530,56,338),RV(72,154,560,"main","展馆西路"),RV(112,154,560),RV(212,154,560),RV(338,154,560,"main","展馆东路"),R([[28,350],[180,350],[180,270],[338,270]],"highway","商务环线"),R([[72,430],[72,530],[180,530],[180,430]],"local","酒店支路"),F("park",250,190,62,42,"会展绿地"),L(58,344,"展馆","🏢"),L(294,532,"酒店","🏨")] },
+    { name:"跨江两岸", district:"滨江路 / 大桥匝道",
+      blocks:[B(34,160,76,74),B(36,430,76,76),B(130,160,86,76),B(130,430,86,76),B(274,160,56,76),B(274,430,56,76)],
+      features:[F("water",20,248,350,152,"江面"),RH(195,28,344,"main","北滨江路"),RH(540,28,344,"main","南滨江路"),RV(72,150,242),RV(72,406,576),RV(174,150,242,"main","西岸路"),RV(174,406,576,"main","西岸路"),RV(236,150,242),RV(236,406,576),RV(320,150,242,"main","东岸路"),RV(320,406,576,"main","东岸路"),R([[72,248],[72,290],[156,290],[156,356],[250,356],[250,400]],"main","绕江桥"),R([[174,248],[174,320],[236,320],[236,248]],"highway","最快桥"),R([[320,248],[320,200],[236,200],[236,150]],"local","公寓匝道"),L(77,540,"码头","⛴️"),L(188,318,"大桥","🌉") ] },
+    { name:"终极城市圈", district:"机场线 / 城市环线",
+      blocks:[B(32,155,60,62),B(112,155,68,62),B(204,155,56,62),B(278,155,54,62),B(34,254,56,56),B(114,252,62,60),B(204,250,58,62),B(278,252,54,58),B(34,356,56,56),B(114,354,62,60),B(204,352,58,62),B(278,354,54,58),B(34,460,60,60),B(112,458,66,64),B(204,458,58,64),B(278,458,54,64),B(36,540,58,36),B(114,540,60,36),B(204,540,56,36),B(278,540,54,36)],
+      features:[RH(186,28,344,"main","机场辅路"),RH(242,28,344),RH(338,28,344,"main","城市中轴"),RH(438,28,344,"main","南环路"),RH(530,28,344),RH(576,28,344,"main","园区路"),RV(64,148,586,"main","西环"),RV(104,148,586),RV(190,148,586),RV(270,148,586,"main","东环"),RV(338,148,586,"main","机场路"),R([[64,438],[104,438],[104,338],[190,338],[190,242],[270,242],[270,186],[338,186]],"highway","城市环线"),R([[190,576],[190,530],[270,530],[270,438],[338,438],[338,338]],"highway","机场联络线"),R([[64,338],[64,242],[104,242],[104,186]],"local","老路"),F("park",52,338,48,62,"事故点"),F("water",228,494,104,26,"景观河"),L(66,575,"园区","💼"),L(320,186,"机场","✈️")] }
   ];
 
-  const state = {
-    levelIndex: 0,
-    route: [],
-    drawing: false,
-    status: "draw",
-    result: null,
-    anim: {
-      distance: 0,
-      speed: 2.8,
-      lastTime: 0,
-      money: 0,
-      car: { x: 0, y: 0, angle: 0 }
-    }
-  };
+  const levels = [
+    { name:"第1关：新手绕小区", passenger:"赶时间的上班族", map:maps[0], start:{x:64,y:560,label:"小区"}, end:{x:338,y:185,label:"公司"}, base:8, rate:.055, target:40, wish:{item:"司机想买一杯大杯奶茶",emoji:"🧋"}, maxSuspicion:82, suspiciousZones:[{type:"circle",x:192,y:350,r:46,label:"乘客熟悉路",penalty:28}], excuseZones:[{type:"rect",x:255,y:335,w:80,h:78,label:"修路",bonus:14}]},
+    { name:"第2关：机场接单", passenger:"外地游客", map:maps[1], start:{x:78,y:170,label:"机场"}, end:{x:336,y:530,label:"酒店"}, base:18, rate:.06, target:58, wish:{item:"司机想买一张洗车券",emoji:"🧽"}, maxSuspicion:86, suspiciousZones:[{type:"rect",x:118,y:238,w:118,h:68,label:"机场快线",penalty:26},{type:"circle",x:288,y:300,r:34,label:"导航提示",penalty:18}], excuseZones:[{type:"circle",x:100,y:438,r:44,label:"高架入口",bonus:13}]},
+    { name:"第3关：雨天绕桥", passenger:"怕堵车的情侣", map:maps[2], start:{x:70,y:560,label:"商场"}, end:{x:338,y:480,label:"影院"}, base:10, rate:.07, target:50, wish:{item:"司机想买一副车载墨镜",emoji:"🕶️"}, maxSuspicion:78, suspiciousZones:[{type:"rect",x:130,y:456,w:126,h:80,label:"直达桥",penalty:35}], excuseZones:[{type:"rect",x:200,y:245,w:110,h:80,label:"积水绕行",bonus:18}]},
+    { name:"第4关：夜宵单", passenger:"喝多的老板", map:maps[3], start:{x:74,y:188,label:"饭店"}, end:{x:320,y:188,label:"家"}, base:12, rate:.075, target:55, wish:{item:"司机想买一瓶高级香氛",emoji:"🌲"}, maxSuspicion:80, suspiciousZones:[{type:"rect",x:126,y:180,w:140,h:80,label:"一眼直路",penalty:38},{type:"circle",x:194,y:470,r:42,label:"熟人街",penalty:23}], excuseZones:[{type:"circle",x:305,y:405,r:40,label:"夜间施工",bonus:18}]},
+    { name:"第5关：景区迷路", passenger:"拍照游客", map:maps[4], start:{x:60,y:560,label:"景区门"}, end:{x:320,y:310,label:"民宿"}, base:16, rate:.065, target:62, wish:{item:"司机想买一套车内脚垫",emoji:"🧩"}, maxSuspicion:84, suspiciousZones:[{type:"circle",x:270,y:450,r:50,label:"地图标路",penalty:30}], excuseZones:[{type:"rect",x:78,y:290,w:108,h:76,label:"观景台",bonus:16},{type:"circle",x:246,y:210,r:32,label:"单行道",bonus:9}]},
+    { name:"第6关：医院急单", passenger:"有点急的家属", map:maps[5], start:{x:338,y:540,label:"社区"}, end:{x:74,y:152,label:"医院"}, base:15, rate:.06, target:60, wish:{item:"司机想买一箱功能饮料",emoji:"🥤"}, maxSuspicion:70, suspiciousZones:[{type:"rect",x:132,y:282,w:132,h:92,label:"医院主路",penalty:42}], excuseZones:[{type:"circle",x:85,y:430,r:45,label:"救护车道",bonus:16}]},
+    { name:"第7关：老城区", passenger:"本地阿姨", map:maps[6], start:{x:70,y:150,label:"菜场"}, end:{x:320,y:580,label:"小区"}, base:9, rate:.082, target:64, wish:{item:"司机想买一个新手机支架",emoji:"📱"}, maxSuspicion:68, suspiciousZones:[{type:"circle",x:185,y:330,r:62,label:"阿姨熟路",penalty:45},{type:"rect",x:248,y:150,w:70,h:82,label:"老邻居",penalty:20}], excuseZones:[{type:"rect",x:55,y:410,w:95,h:80,label:"限行",bonus:20}]},
+    { name:"第8关：会展中心", passenger:"外企客户", map:maps[7], start:{x:72,y:350,label:"展馆"}, end:{x:338,y:530,label:"酒店"}, base:20, rate:.072, target:70, wish:{item:"司机想买一副蓝牙耳机",emoji:"🎧"}, maxSuspicion:75, suspiciousZones:[{type:"rect",x:132,y:308,w:128,h:76,label:"主干道",penalty:38},{type:"circle",x:295,y:510,r:40,label:"导航绿线",penalty:24}], excuseZones:[{type:"circle",x:102,y:520,r:42,label:"环线入口",bonus:14},{type:"rect",x:242,y:180,w:88,h:74,label:"临时管制",bonus:15}]},
+    { name:"第9关：跨江订单", passenger:"开着导航的乘客", map:maps[8], start:{x:72,y:540,label:"码头"}, end:{x:320,y:150,label:"公寓"}, base:18, rate:.075, target:76, wish:{item:"司机想买一个车载大屏",emoji:"📺"}, maxSuspicion:64, suspiciousZones:[{type:"rect",x:150,y:315,w:110,h:88,label:"最快桥",penalty:45},{type:"circle",x:295,y:395,r:38,label:"导航盯着",penalty:24}], excuseZones:[{type:"rect",x:52,y:235,w:92,h:75,label:"封桥绕行",bonus:22}]},
+    { name:"第10关：终极黑车王", passenger:"很懂路的产品经理", map:maps[9], start:{x:64,y:576,label:"园区"}, end:{x:338,y:186,label:"机场"}, base:26, rate:.082, target:92, wish:{item:"司机想攒二手跑车首付",emoji:"🏎️"}, maxSuspicion:58, suspiciousZones:[{type:"rect",x:120,y:365,w:155,h:78,label:"官方推荐路",penalty:45},{type:"circle",x:280,y:245,r:42,label:"乘客常走",penalty:28},{type:"circle",x:98,y:210,r:36,label:"明显反向",penalty:25}], excuseZones:[{type:"rect",x:205,y:500,w:95,h:70,label:"高架绕行",bonus:18},{type:"circle",x:85,y:360,r:42,label:"事故点",bonus:17}]}
+  ];
 
-  function level() { return levels[state.levelIndex]; }
+  const state = { screen:"start", levelIndex:0, route:[], drawing:false, status:"draw", result:null, lastWarn:0, anim:{distance:0,speed:3.05,lastTime:0,money:0,car:{x:0,y:0,angle:0}} };
+  const level = () => levels[state.levelIndex];
+  const roads = () => level().map.features.filter(f => f.kind === "road");
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+  const routeLen = r => r.reduce((s,p,i)=> i ? s + dist(r[i-1], p) : 0, 0);
+  const insideRect = (p,b,pad=0) => p.x>=b[0]-pad && p.x<=b[0]+b[2]+pad && p.y>=b[1]-pad && p.y<=b[1]+b[3]+pad;
+  const inBuilding = p => level().map.blocks.some(b => insideRect(p,b,-1));
+  const inMap = p => p.x>=MAP.l+8 && p.x<=MAP.r-8 && p.y>=MAP.t+8 && p.y<=MAP.b-8;
 
-  function dist(a, b) {
-    const dx = a.x - b.x;
-    const dy = a.y - b.y;
-    return Math.hypot(dx, dy);
+  function pointer(evt){ const e=evt.touches?evt.touches[0]:evt; const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}; }
+  function segNearest(p,a,b){ const vx=b[0]-a[0],vy=b[1]-a[1], wx=p.x-a[0],wy=p.y-a[1]; const t=clamp((vx*wx+vy*wy)/(vx*vx+vy*vy||1),0,1); const x=a[0]+vx*t,y=a[1]+vy*t; return {x,y,d:Math.hypot(p.x-x,p.y-y)}; }
+  function nearestRoad(p){ let best={x:p.x,y:p.y,d:9999,road:null}; for(const r of roads()){ for(let i=1;i<r.points.length;i++){ const n=segNearest(p,r.points[i-1],r.points[i]); if(n.d<best.d) best={...n,road:r}; } } return best; }
+  function snap(p){ if(!inMap(p)) return {ok:false,reason:"路线不能画出地图边界。"}; if(inBuilding(p)) return {ok:false,reason:"建筑物上不能画路线，请沿道路绕过去。"}; const n=nearestRoad(p); if(n.d>34) return {ok:false,reason:"这里只不是道路，路线要沿道路画。"}; if(inBuilding(n)) return {ok:false,reason:"这段路被建筑挡住了。"}; return {ok:true,point:{x:n.x,y:n.y}}; }
+
+  function inZone(p,z){ return z.type==="circle" ? Math.hypot(p.x-z.x,p.y-z.y)<=z.r : p.x>=z.x&&p.x<=z.x+z.w&&p.y>=z.y&&p.y<=z.y+z.h; }
+  function evalRoute(route){
+    const lv=level();
+    if(route.length<2) return {valid:false,reason:"路线太短了。",length:0,ratio:0,suspicion:0,money:lv.base,stars:0};
+    const length=routeLen(route), shortest=dist(lv.start,lv.end), ratio=length/Math.max(1,shortest);
+    let suspicion=Math.max(0,(ratio-1.18)*34), hitSuspicious=[], hitExcuse=[];
+    for(const z of lv.suspiciousZones) if(route.some(p=>inZone(p,z))){ suspicion+=z.penalty; hitSuspicious.push(z.label); }
+    for(const z of lv.excuseZones) if(route.some(p=>inZone(p,z))){ suspicion-=z.bonus; hitExcuse.push(z.label); }
+    if(ratio>2.05&&!hitExcuse.length) suspicion+=18; if(ratio>2.6) suspicion+=20;
+    const hitBuilding=route.some(inBuilding), offRoad=route.some(p=>nearestRoad(p).d>24);
+    if(hitBuilding||offRoad) suspicion+=999;
+    suspicion=Math.max(0,Math.round(suspicion));
+    const money=Math.round(lv.base+length*lv.rate), startOk=dist(route[0],lv.start)<52, endOk=dist(route[route.length-1],lv.end)<55;
+    const valid=startOk&&endOk&&!hitBuilding&&!offRoad, fail=valid&&suspicion>=100;
+    let reason="可以发车。";
+    if(!startOk) reason="要从黄色起点附近开始画路线。"; else if(!endOk) reason="路线最后要接到绿色终点。"; else if(hitBuilding) reason="路线压到建筑物了。"; else if(offRoad) reason="路线没有完全沿道路行驶。"; else if(fail) reason="乘客怀疑值爆表，被发现了。";
+    let stars=1; if(valid&&!fail&&money>=lv.target&&suspicion<=lv.maxSuspicion) stars=3; else if(valid&&!fail&&money>=Math.round(lv.target*.78)) stars=2;
+    return {valid,fail,reason,length,shortest,ratio,suspicion,money,hitSuspicious,hitExcuse,stars};
   }
 
-  function routeLength(route) {
-    let sum = 0;
-    for (let i = 1; i < route.length; i++) sum += dist(route[i - 1], route[i]);
-    return sum;
+  function pointAt(route,travel){
+    if(!route.length) return {x:level().start.x,y:level().start.y,angle:0};
+    let left=travel; for(let i=1;i<route.length;i++){ const a=route[i-1],b=route[i],s=dist(a,b); if(left<=s){ const t=s?left/s:0; return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2(b.y-a.y,b.x-a.x)}; } left-=s; }
+    const a=route[route.length-2]||route[0],b=route[route.length-1]; return {x:b.x,y:b.y,angle:Math.atan2(b.y-a.y,b.x-a.x)};
   }
 
-  function getPointerPos(evt) {
-    const e = evt.touches ? evt.touches[0] : evt;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * W / rect.width,
-      y: (e.clientY - rect.top) * H / rect.height
-    };
-  }
+  function rr(x,y,w,h,r){ const q=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+q,y); ctx.arcTo(x+w,y,x+w,y+h,q); ctx.arcTo(x+w,y+h,x,y+h,q); ctx.arcTo(x,y+h,x,y,q); ctx.arcTo(x,y,x+w,y,q); ctx.closePath(); }
+  function text(t,x,y,s=14,w=800,a="left",c=C.ink){ ctx.save(); ctx.font=`${w} ${s}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial`; ctx.textAlign=a; ctx.textBaseline="middle"; ctx.fillStyle=c; ctx.fillText(t,x,y); ctx.restore(); }
+  function wrap(t,x,y,max,lineH,s=13,w=800,c=C.ink){ ctx.save(); ctx.font=`${w} ${s}px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial`; ctx.fillStyle=c; ctx.textBaseline="middle"; let line="", yy=y; for(const ch of t){ const test=line+ch; if(ctx.measureText(test).width>max&&line){ ctx.fillText(line,x,yy); line=ch; yy+=lineH; } else line=test; } if(line) ctx.fillText(line,x,yy); ctx.restore(); }
 
-  function inZone(p, z) {
-    if (z.type === "circle") return Math.hypot(p.x - z.x, p.y - z.y) <= z.r;
-    return p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h;
-  }
-
-  function routeHitsZone(route, z) {
-    return route.some(p => inZone(p, z));
-  }
-
-  function evaluateRoute(route) {
-    const lv = level();
-    if (route.length < 2) {
-      return {
-        valid: false,
-        reason: "路线太短了。请从起点拖到终点。",
-        length: 0,
-        shortest: dist(lv.start, lv.end),
-        ratio: 0,
-        suspicion: 0,
-        money: lv.base
-      };
-    }
-
-    const startOk = dist(route[0], lv.start) < 42;
-    const endOk = dist(route[route.length - 1], lv.end) < 48;
-    const length = routeLength(route);
-    const shortest = dist(lv.start, lv.end);
-    const ratio = length / Math.max(1, shortest);
-
-    let suspicion = Math.max(0, (ratio - 1.22) * 34);
-    const hitSuspicious = [];
-    const hitExcuse = [];
-
-    for (const z of lv.suspiciousZones) {
-      if (routeHitsZone(route, z)) {
-        suspicion += z.penalty;
-        hitSuspicious.push(z.label);
-      }
-    }
-
-    for (const z of lv.excuseZones) {
-      if (routeHitsZone(route, z)) {
-        suspicion -= z.bonus;
-        hitExcuse.push(z.label);
-      }
-    }
-
-    if (ratio > 2.05 && hitExcuse.length === 0) suspicion += 18;
-    if (ratio > 2.6) suspicion += 20;
-
-    suspicion = Math.max(0, Math.round(suspicion));
-    const money = Math.round(lv.base + length * lv.rate);
-    const valid = startOk && endOk;
-    const fail = valid && suspicion >= 100;
-
-    let reason = "";
-    if (!startOk) reason = "要从黄色起点附近开始画路线。";
-    else if (!endOk) reason = "路线最后要接到绿色终点。";
-    else if (fail) reason = "乘客怀疑值爆表：你绕得太明显，被发现了。";
-    else reason = "可以发车。";
-
-    let stars = 1;
-    if (valid && !fail && money >= lv.target && suspicion <= lv.maxSuspicion) stars = 3;
-    else if (valid && !fail && money >= Math.round(lv.target * 0.78)) stars = 2;
-
-    return {
-      valid, fail, reason, length, shortest, ratio, suspicion, money,
-      hitSuspicious, hitExcuse, stars
-    };
-  }
-
-  function pointAtDistance(route, travel) {
-    if (!route.length) return { x: level().start.x, y: level().start.y, angle: -Math.PI / 2 };
-    let remain = travel;
-    for (let i = 1; i < route.length; i++) {
-      const a = route[i - 1];
-      const b = route[i];
-      const seg = dist(a, b);
-      if (remain <= seg) {
-        const t = seg === 0 ? 0 : remain / seg;
-        return {
-          x: a.x + (b.x - a.x) * t,
-          y: a.y + (b.y - a.y) * t,
-          angle: Math.atan2(b.y - a.y, b.x - a.x)
-        };
-      }
-      remain -= seg;
-    }
-    const a = route[route.length - 2] || route[0];
-    const b = route[route.length - 1] || route[0];
-    return { x: b.x, y: b.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
-  }
-
-  function roundedRect(x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-  }
-
-  function drawText(text, x, y, size = 14, weight = 800, align = "left", color = "#21170f") {
-    ctx.save();
-    ctx.font = `${weight} ${size}px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial`;
-    ctx.textAlign = align;
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
+  function drawRoad(f){
+    const edge=f.type==="highway"?C.highwayEdge:f.type==="main"?C.mainEdge:C.localEdge;
+    const fill=f.type==="highway"?C.highway:f.type==="main"?C.main:C.local;
+    const ew=f.type==="highway"?25:f.type==="main"?23:18, fw=f.type==="highway"?18:f.type==="main"?16:12;
+    ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.strokeStyle=edge; ctx.lineWidth=ew; ctx.beginPath(); ctx.moveTo(f.points[0][0],f.points[0][1]); for(let i=1;i<f.points.length;i++) ctx.lineTo(f.points[i][0],f.points[i][1]); ctx.stroke();
+    ctx.strokeStyle=fill; ctx.lineWidth=fw; ctx.beginPath(); ctx.moveTo(f.points[0][0],f.points[0][1]); for(let i=1;i<f.points.length;i++) ctx.lineTo(f.points[i][0],f.points[i][1]); ctx.stroke();
+    if(f.type!=="local"){ ctx.strokeStyle="rgba(255,255,255,.58)"; ctx.lineWidth=2; ctx.setLineDash([14,14]); ctx.beginPath(); ctx.moveTo(f.points[0][0],f.points[0][1]); for(let i=1;i<f.points.length;i++) ctx.lineTo(f.points[i][0],f.points[i][1]); ctx.stroke(); ctx.setLineDash([]); }
+    if(f.label){ const m=f.points[Math.floor(f.points.length/2)]; rr(m[0]-30,m[1]-9,60,18,9); ctx.fillStyle="rgba(255,255,255,.72)"; ctx.fill(); text(f.label,m[0],m[1],9,800,"center","#74685c"); }
     ctx.restore();
   }
 
-  function drawFeature(feature) {
-    if (feature.kind === "water") {
-      ctx.save();
-      roundedRect(feature.x, feature.y, feature.w, feature.h, 14);
-      ctx.fillStyle = "#a7ddff";
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#4e9fd2";
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(255,255,255,.7)";
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
-        const yy = feature.y + 8 + i * 10;
-        ctx.beginPath();
-        ctx.moveTo(feature.x + 10, yy);
-        ctx.quadraticCurveTo(feature.x + feature.w * 0.35, yy - 6, feature.x + feature.w * 0.65, yy);
-        ctx.quadraticCurveTo(feature.x + feature.w * 0.82, yy + 5, feature.x + feature.w - 10, yy);
-        ctx.stroke();
-      }
-      ctx.restore();
-    } else if (feature.kind === "park") {
-      ctx.save();
-      roundedRect(feature.x, feature.y, feature.w, feature.h, 14);
-      ctx.fillStyle = "#cfeec8";
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#6eb56e";
-      ctx.stroke();
-      drawText("公园", feature.x + feature.w/2, feature.y + feature.h/2, 12, 900, "center", "#347a37");
-      ctx.restore();
-    } else if (feature.kind === "road") {
-      ctx.save();
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#d7c092";
-      ctx.lineWidth = 17;
-      ctx.beginPath();
-      ctx.moveTo(feature.points[0][0], feature.points[0][1]);
-      for (let i = 1; i < feature.points.length; i++) {
-        ctx.lineTo(feature.points[i][0], feature.points[i][1]);
-      }
-      ctx.stroke();
-      ctx.strokeStyle = "#fff6dd";
-      ctx.lineWidth = 5;
-      ctx.setLineDash([16, 14]);
-      ctx.beginPath();
-      ctx.moveTo(feature.points[0][0], feature.points[0][1]);
-      for (let i = 1; i < feature.points.length; i++) {
-        ctx.lineTo(feature.points[i][0], feature.points[i][1]);
-      }
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    } else if (feature.kind === "landmark") {
-      ctx.save();
-      roundedRect(feature.x - 26, feature.y - 12, 52, 24, 12);
-      ctx.fillStyle = "#fffaf0";
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#21170f";
-      ctx.stroke();
-      drawText((feature.icon ? feature.icon + " " : "") + feature.label, feature.x, feature.y, 10, 900, "center", "#50351d");
-      ctx.restore();
-    }
+  function drawFeature(f){
+    if(f.kind==="water"){ rr(f.x,f.y,f.w,f.h,14); ctx.fillStyle=C.water; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#75b9ef"; ctx.stroke(); text(f.label,f.x+f.w/2,f.y+f.h/2,11,900,"center","#2c78b9"); }
+    else if(f.kind==="park"){ rr(f.x,f.y,f.w,f.h,14); ctx.fillStyle=C.park; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#98ca78"; ctx.stroke(); text(f.label,f.x+f.w/2,f.y+f.h/2,11,900,"center","#3e853c"); }
+    else if(f.kind==="landmark"){ const w=Math.max(50,f.label.length*10+(f.icon?18:0)); rr(f.x-w/2,f.y-12,w,24,12); ctx.fillStyle="#fffef8"; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle="#cabfae"; ctx.stroke(); text((f.icon?f.icon+" ":"")+f.label,f.x,f.y,10,900,"center","#55483c"); }
   }
 
-  function drawZones() {
-    const lv = level();
-
-    for (const z of lv.excuseZones) {
-      ctx.save();
-      ctx.fillStyle = "rgba(48, 145, 212, .16)";
-      ctx.strokeStyle = "#307fc2";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 6]);
-      if (z.type === "circle") {
-        ctx.beginPath();
-        ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-        drawText(z.label, z.x, z.y, 12, 900, "center", "#1d5f96");
-      } else {
-        roundedRect(z.x, z.y, z.w, z.h, 14);
-        ctx.fill(); ctx.stroke();
-        drawText(z.label, z.x + z.w/2, z.y + z.h/2, 12, 900, "center", "#1d5f96");
-      }
-      ctx.restore();
-    }
-
-    for (const z of lv.suspiciousZones) {
-      ctx.save();
-      ctx.fillStyle = "rgba(223, 59, 53, .14)";
-      ctx.strokeStyle = "#df3b35";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([7, 6]);
-      if (z.type === "circle") {
-        ctx.beginPath();
-        ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-        drawText(z.label, z.x, z.y, 12, 900, "center", "#b9231f");
-      } else {
-        roundedRect(z.x, z.y, z.w, z.h, 14);
-        ctx.fill(); ctx.stroke();
-        drawText(z.label, z.x + z.w/2, z.y + z.h/2, 12, 900, "center", "#b9231f");
-      }
-      ctx.restore();
-    }
+  function drawZones(){
+    const lv=level();
+    for(const z of lv.excuseZones){ ctx.save(); ctx.fillStyle="rgba(39,123,220,.12)"; ctx.strokeStyle=C.blue; ctx.lineWidth=2.5; ctx.setLineDash([8,6]); if(z.type==="circle"){ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.fill();ctx.stroke();text(z.label,z.x,z.y,12,900,"center","#1d5f96");}else{rr(z.x,z.y,z.w,z.h,14);ctx.fill();ctx.stroke();text(z.label,z.x+z.w/2,z.y+z.h/2,12,900,"center","#1d5f96");} ctx.restore(); }
+    for(const z of lv.suspiciousZones){ ctx.save(); ctx.fillStyle="rgba(223,59,53,.12)"; ctx.strokeStyle=C.red; ctx.lineWidth=2.5; ctx.setLineDash([7,6]); if(z.type==="circle"){ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.fill();ctx.stroke();text(z.label,z.x,z.y,12,900,"center","#b9231f");}else{rr(z.x,z.y,z.w,z.h,14);ctx.fill();ctx.stroke();text(z.label,z.x+z.w/2,z.y+z.h/2,12,900,"center","#b9231f");} ctx.restore(); }
   }
 
-  function drawBackground() {
-    ctx.fillStyle = "#fff9e9";
-    ctx.fillRect(0, 0, W, H);
-
-    roundedRect(14, 14, W - 28, 105, 18);
-    ctx.fillStyle = "#fff3ce";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-
-    const lv = level();
-    drawText(lv.name, 28, 39, 16, 900);
-    drawText(`乘客：${lv.passenger}`, 28, 66, 12, 800, "left", "#5e3b1e");
-    drawText(`地图：${lv.map.name}｜目标黑心收入 ≥ ¥${lv.target}`, 28, 92, 12, 900, "left", "#5e3b1e");
-
-    const evalNow = evaluateRoute(state.route);
-    const money = state.status === "drive" ? Math.round(state.anim.money) : evalNow.money;
-    const suspicion = evalNow.suspicion || 0;
-    const suspicionColor = suspicion >= 85 ? "#df3b35" : suspicion >= 55 ? "#c46b00" : "#2e9d68";
-    drawText(`¥${money}`, 280, 43, 25, 950, "left", "#21170f");
-    drawText(`怀疑 ${Math.min(100, suspicion)}/100`, 282, 76, 13, 900, "left", suspicionColor);
-
-    roundedRect(MAP_LEFT, MAP_TOP, MAP_W, MAP_H, 20);
-    ctx.fillStyle = "#fffdf5";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-
-    ctx.save();
-    ctx.beginPath();
-    roundedRect(MAP_LEFT + 2, MAP_TOP + 2, MAP_W - 4, MAP_H - 4, 18);
-    ctx.clip();
-
-    ctx.fillStyle = "#fff8e2";
-    ctx.fillRect(MAP_LEFT + 2, MAP_TOP + 2, MAP_W - 4, MAP_H - 4);
-
-    // Draw blocks first
-    ctx.fillStyle = "#f4e2ba";
-    ctx.strokeStyle = "rgba(33,23,15,.35)";
-    ctx.lineWidth = 2;
-    for (const b of lv.map.blocks) {
-      roundedRect(b[0], b[1], b[2], b[3], 10);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // Draw map features
-    for (const f of lv.map.features) drawFeature(f);
-
-    drawZones();
-    ctx.restore();
+  function drawMap(){
+    const m=level().map; rr(MAP.l,MAP.t,MAP.w,MAP.h,20); ctx.fillStyle=C.bg; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke();
+    ctx.save(); ctx.beginPath(); rr(MAP.l+2,MAP.t+2,MAP.w-4,MAP.h-4,18); ctx.clip(); ctx.fillStyle=C.bg; ctx.fillRect(MAP.l+2,MAP.t+2,MAP.w-4,MAP.h-4);
+    ctx.strokeStyle="rgba(180,170,155,.18)"; ctx.lineWidth=1; for(let x=40;x<360;x+=40){ctx.beginPath();ctx.moveTo(x,MAP.t+2);ctx.lineTo(x,MAP.b-2);ctx.stroke();} for(let y=160;y<590;y+=40){ctx.beginPath();ctx.moveTo(MAP.l+2,y);ctx.lineTo(MAP.r-2,y);ctx.stroke();}
+    for(const f of m.features) if(f.kind==="water"||f.kind==="park") drawFeature(f);
+    for(const b of m.blocks){ rr(b[0],b[1],b[2],b[3],8); ctx.fillStyle=C.block; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=C.blockLine; ctx.stroke(); }
+    for(const f of m.features) if(f.kind==="road") drawRoad(f);
+    for(const f of m.features) if(f.kind==="landmark") drawFeature(f);
+    drawZones(); rr(24,140,166,22,11); ctx.fillStyle="rgba(255,255,255,.78)"; ctx.fill(); text(m.district,34,151,10,900,"left","#80746a"); ctx.restore();
   }
 
-  function drawPin(p, color, label, emoji) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-
-    ctx.fillStyle = "rgba(0,0,0,.12)";
-    ctx.beginPath();
-    ctx.ellipse(0, 22, 20, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = color;
-    ctx.strokeStyle = "#21170f";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, -4, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(-10, 10);
-    ctx.lineTo(0, 30);
-    ctx.lineTo(10, 10);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    drawText(emoji, 0, -5, 16, 900, "center", "#21170f");
-    ctx.restore();
-
-    roundedRect(p.x - 36, p.y + 32, 72, 22, 11);
-    ctx.fillStyle = "#fffaf0";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-    drawText(label, p.x, p.y + 44, 11, 900, "center");
+  function drawHeader(){
+    const lv=level(), e=evalRoute(state.route), money=state.status==="drive"?Math.round(state.anim.money):e.money, suspicion=e.suspicion||0;
+    const sc=suspicion>=85?C.red:suspicion>=55?"#c46b00":C.green;
+    rr(14,14,W-28,105,18); ctx.fillStyle="#fff8e9"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke();
+    text(lv.name,28,38,16,950); text(`乘客：${lv.passenger}`,28,64,12,800,"left","#5e3b1e"); text(`${lv.wish.emoji} ${lv.wish.item}`,28,91,12,900,"left","#5e3b1e");
+    rr(275,26,84,34,12); ctx.fillStyle="#fff2bd"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=C.ink; ctx.stroke(); text(`¥${money}`,317,44,22,950,"center"); text(`目标 ¥${lv.target}`,318,70,11,900,"center","#7a5635"); text(`怀疑 ${Math.min(100,suspicion)}/100`,318,94,12,900,"center",sc);
   }
 
-  function drawRoute(route, options = {}) {
-    if (route.length < 2) return;
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    ctx.strokeStyle = "rgba(33,23,15,.18)";
-    ctx.lineWidth = 15;
-    ctx.beginPath();
-    ctx.moveTo(route[0].x, route[0].y);
-    for (let i = 1; i < route.length; i++) ctx.lineTo(route[i].x, route[i].y);
-    ctx.stroke();
-
-    ctx.strokeStyle = options.color || "#f47b20";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(route[0].x, route[0].y);
-    for (let i = 1; i < route.length; i++) ctx.lineTo(route[i].x, route[i].y);
-    ctx.stroke();
-
-    ctx.setLineDash([1, 16]);
-    ctx.strokeStyle = "#fffaf0";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(route[0].x, route[0].y);
-    for (let i = 1; i < route.length; i++) ctx.lineTo(route[i].x, route[i].y);
-    ctx.stroke();
-
-    ctx.restore();
+  function drawPin(p,color,label,mark){
+    ctx.save(); ctx.translate(p.x,p.y); ctx.fillStyle="rgba(0,0,0,.14)"; ctx.beginPath(); ctx.ellipse(0,20,18,7,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle=color; ctx.strokeStyle=C.ink; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(0,-4,17,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-9,9); ctx.lineTo(0,29); ctx.lineTo(9,9); ctx.closePath(); ctx.fill(); ctx.stroke(); text(mark,0,-5,15,950,"center"); ctx.restore();
+    rr(p.x-34,p.y+30,68,21,10); ctx.fillStyle="#fffef8"; ctx.fill(); ctx.lineWidth=1.8; ctx.strokeStyle="#a99c8c"; ctx.stroke(); text(label,p.x,p.y+41,10,900,"center");
   }
 
-  function drawCuteCar(x, y, angle, scale = 1) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
+  function drawRoute(route,color=C.route){ if(route.length<2) return; ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="rgba(20,72,160,.22)"; ctx.lineWidth=18; ctx.beginPath(); ctx.moveTo(route[0].x,route[0].y); for(let i=1;i<route.length;i++) ctx.lineTo(route[i].x,route[i].y); ctx.stroke(); ctx.strokeStyle=color; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(route[0].x,route[0].y); for(let i=1;i<route.length;i++) ctx.lineTo(route[i].x,route[i].y); ctx.stroke(); ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.lineWidth=2.5; ctx.setLineDash([1,18]); ctx.beginPath(); ctx.moveTo(route[0].x,route[0].y); for(let i=1;i<route.length;i++) ctx.lineTo(route[i].x,route[i].y); ctx.stroke(); ctx.restore(); }
 
-    ctx.fillStyle = "rgba(0,0,0,.14)";
-    ctx.beginPath();
-    ctx.ellipse(0, 14, 28, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    roundedRect(-24, -16, 50, 31, 12);
-    ctx.fillStyle = "#ffb14a";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-
-    roundedRect(-7, -24, 25, 20, 9);
-    ctx.fillStyle = "#ffe5a6";
-    ctx.fill();
-    ctx.stroke();
-
-    roundedRect(4, -21, 11, 12, 4);
-    ctx.fillStyle = "#8cd4ff";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-
-    ctx.fillStyle = "#21170f";
-    ctx.beginPath();
-    ctx.arc(10, -3, 2.5, 0, Math.PI * 2);
-    ctx.arc(10, 7, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#21170f";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(20, 2, 4, -Math.PI / 2, Math.PI / 2);
-    ctx.stroke();
-
-    roundedRect(-6, -31, 18, 9, 4);
-    ctx.fillStyle = "#fffaf0";
-    ctx.fill();
-    ctx.strokeStyle = "#21170f";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = "#21170f";
-    ctx.beginPath();
-    ctx.arc(-13, -16, 5, 0, Math.PI * 2);
-    ctx.arc(-13, 15, 5, 0, Math.PI * 2);
-    ctx.arc(14, -16, 5, 0, Math.PI * 2);
-    ctx.arc(14, 15, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+  function drawCar(x,y,angle,scale=1){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(angle); ctx.scale(scale,scale);
+    ctx.fillStyle="rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(1,16,28,11,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#111"; rr(-20,-18,12,7,3); ctx.fill(); rr(-20,11,12,7,3); ctx.fill(); rr(13,-18,12,7,3); ctx.fill(); rr(13,11,12,7,3); ctx.fill();
+    rr(-28,-15,58,30,10); ctx.fillStyle="#ffd238"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke();
+    ctx.strokeStyle="rgba(30,26,22,.45)"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(12,-14); ctx.lineTo(12,14); ctx.moveTo(-17,-14); ctx.lineTo(-17,14); ctx.stroke();
+    rr(-9,-19,25,38,8); ctx.fillStyle="#83cfff"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=C.ink; ctx.stroke();
+    ctx.strokeStyle="rgba(255,255,255,.75)"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(4,-14); ctx.lineTo(13,-5); ctx.moveTo(-5,9); ctx.lineTo(8,17); ctx.stroke();
+    rr(-3,-27,24,9,4); ctx.fillStyle="#fffaf0"; ctx.fill(); ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.stroke(); text("TAXI",9,-22,6,950,"center");
+    ctx.fillStyle="#fff7b8"; ctx.beginPath(); ctx.arc(28,-8,3,0,Math.PI*2); ctx.arc(28,8,3,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#e94338"; ctx.beginPath(); ctx.arc(-27,-8,2.6,0,Math.PI*2); ctx.arc(-27,8,2.6,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
 
-  function drawBottomPanel() {
-    const evalNow = evaluateRoute(state.route);
-    roundedRect(14, 615, W - 28, 52, 16);
-    ctx.fillStyle = "#fff3ce";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-
-    let msg = "每一关地图不同，按住黄色起点画路线。";
-    if (state.status === "preview") {
-      msg = `预计收入 ¥${evalNow.money}｜绕路 ${evalNow.ratio.toFixed(2)}x｜怀疑 ${evalNow.suspicion}/100`;
-    } else if (state.status === "drive") {
-      msg = `正在绕路：已赚 ¥${Math.round(state.anim.money)}，别被发现……`;
-    } else if (state.status === "result") {
-      if (evalNow.fail) msg = `失败：${evalNow.reason}`;
-      else msg = `${"★".repeat(evalNow.stars)}${"☆".repeat(3 - evalNow.stars)}  收入 ¥${evalNow.money}｜怀疑 ${evalNow.suspicion}/100`;
-    }
-
-    drawText(msg, 28, 641, 13, 900, "left", "#21170f");
+  function drawBottom(){
+    const lv=level(), e=evalRoute(state.route); rr(14,615,W-28,52,16); ctx.fillStyle="#fff8e9"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke();
+    let msg="点击提示后开始画：路线会自动吸附到道路，不能穿建筑。";
+    if(state.screen==="start") msg="点击画面开始接单。"; else if(state.screen==="hint") msg="点击提示关闭后，从黄色起点沿道路画到绿色终点。"; else if(state.status==="preview") msg=`预计收入 ¥${e.money} / ${lv.wish.item}｜绕路 ${e.ratio.toFixed(2)}x｜怀疑 ${e.suspicion}/100`; else if(state.status==="drive") msg=`正在绕路：已赚 ¥${Math.round(state.anim.money)}，目标 ¥${lv.target}……`; else if(state.status==="result") msg=e.fail?`失败：${e.reason}`:`${"★".repeat(e.stars)}${"☆".repeat(3-e.stars)}  收入 ¥${e.money}｜${e.money>=lv.target?"买到了":"还差一点"} ${lv.wish.emoji}`;
+    text(msg.slice(0,38),28,641,13,900);
   }
 
-  function drawTutorialOverlay() {
-    if (state.route.length > 1 || state.status !== "draw") return;
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    roundedRect(48, 270, 294, 92, 20);
-    ctx.fillStyle = "#fffaf0";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#21170f";
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    drawText("每一关都是不同地图", 195, 298, 15, 900, "center");
-    drawText("画一条更远但别太离谱的路线", 195, 324, 12, 800, "center", "#62421f");
-    drawText("🚕", 195, 348, 21, 900, "center");
-    ctx.restore();
+  function drawHint(){
+    if(state.screen!=="hint") return; const lv=level(); ctx.save(); ctx.fillStyle="rgba(30,26,22,.24)"; ctx.fillRect(0,0,W,H); rr(38,214,W-76,224,24); ctx.fillStyle="#fffaf0"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke(); text(`${lv.wish.emoji} 本关目标`,W/2,246,20,950,"center"); wrap(lv.wish.item,67,282,255,22,15,900); rr(72,320,W-144,38,18); ctx.fillStyle="#fff0b8"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=C.ink; ctx.stroke(); text(`赚到 ¥${lv.target} 就能买`,W/2,339,16,950,"center"); text("规则",67,378,13,950,"left","#7a5635"); text("• 蓝色路线会吸附道路",80,401,12,850,"left","#5e3b1e"); text("• 建筑物上不能画路线",80,421,12,850,"left","#5e3b1e"); text("点击任意位置关闭提示",W/2,462,13,950,"center",C.blue); ctx.restore();
   }
 
-  function draw() {
-    drawBackground();
-    const lv = level();
-
-    drawRoute(state.route, {
-      color: state.status === "result" && state.result?.fail ? "#df3b35" : "#f47b20"
-    });
-
-    drawPin(lv.start, "#ffd64f", lv.start.label, "起");
-    drawPin(lv.end, "#71d97d", lv.end.label, "终");
-
-    if (state.status === "drive") {
-      drawCuteCar(state.anim.car.x, state.anim.car.y, state.anim.car.angle, 0.9);
-    } else if (state.route.length < 2) {
-      drawCuteCar(lv.start.x, lv.start.y - 44, -Math.PI / 2, 0.75);
-    }
-
-    drawBottomPanel();
-    drawTutorialOverlay();
+  function drawStart(){
+    ctx.clearRect(0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#fff5d9"); g.addColorStop(1,"#ffd48a"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.save(); ctx.globalAlpha=.42; ctx.strokeStyle="#fff"; ctx.lineWidth=22; ctx.lineCap="round"; for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(-40,150+i*80);ctx.bezierCurveTo(80,100+i*90,250,230+i*50,430,160+i*90);ctx.stroke();} ctx.strokeStyle="#ffd063"; ctx.lineWidth=11; for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(30+i*72,90);ctx.lineTo(60+i*55,610);ctx.stroke();} ctx.restore();
+    rr(30,72,W-60,96,26); ctx.fillStyle="rgba(255,250,240,.9)"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke(); text("EVIL TAXI",W/2,105,32,950,"center"); text("绕路司机",W/2,142,22,950,"center","#ff7a1d"); drawCar(W/2,278,0,1.75);
+    rr(54,364,W-108,116,24); ctx.fillStyle="rgba(255,250,240,.92)"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke(); text("目标：绕得够远，但别被发现",W/2,394,17,950,"center"); text("每关司机都有一个想买的东西",W/2,426,13,850,"center","#5e3b1e"); text("赚够钱，才算黑心得漂亮",W/2,450,13,850,"center","#5e3b1e");
+    rr(70,520,W-140,54,24); ctx.fillStyle="#ff8a1f"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=C.ink; ctx.stroke(); text("点击开始接单",W/2,547,18,950,"center","#fffaf0"); text("10关地图 / 道路吸附 / 建筑禁画",W/2,620,12,900,"center","#6b4b2e");
   }
 
-  function refreshStatus() {
-    const evalNow = evaluateRoute(state.route);
-    if (state.status === "draw") {
-      statusEl.textContent = "现在每一关都有不同地图。从起点按住拖动，画一条“看起来合理但其实很绕”的路线。";
-    } else if (state.status === "preview") {
-      const tags = [];
-      if (evalNow.hitSuspicious?.length) tags.push(`踩雷：${evalNow.hitSuspicious.join("、")}`);
-      if (evalNow.hitExcuse?.length) tags.push(`借口：${evalNow.hitExcuse.join("、")}`);
-      statusEl.textContent = `${evalNow.reason} 预计收入 ¥${evalNow.money}，绕路 ${evalNow.ratio.toFixed(2)}x，怀疑 ${evalNow.suspicion}/100。${tags.join("；")}`;
-    } else if (state.status === "drive") {
-      statusEl.textContent = "小车正在按你的路线绕路，收入会随着行驶距离实时增加。";
-    } else if (state.status === "result") {
-      if (evalNow.fail) {
-        statusEl.textContent = `被发现了：${evalNow.reason} 可以重画，避开红区或找蓝区做借口。`;
-      } else if (evalNow.stars >= 3) {
-        statusEl.textContent = `完美黑车！赚到 ¥${evalNow.money}，但怀疑只有 ${evalNow.suspicion}/100。`;
-      } else {
-        statusEl.textContent = `安全送达，赚到 ¥${evalNow.money}。想拿更高星，可以再绕一点，但别进红区。`;
-      }
-    }
-
-    driveBtn.disabled = !(state.status === "preview" && evalNow.valid);
-    nextBtn.disabled = state.status !== "result";
+  function draw(){
+    if(state.screen==="start"){ drawStart(); return; }
+    ctx.fillStyle="#f7f5ec"; ctx.fillRect(0,0,W,H); drawHeader(); drawMap(); drawRoute(state.route, state.status==="result"&&state.result?.fail?C.red:C.route); const lv=level(); drawPin(lv.start,C.yellow,lv.start.label,"起"); drawPin(lv.end,C.green,lv.end.label,"终"); if(state.status==="drive") drawCar(state.anim.car.x,state.anim.car.y,state.anim.car.angle,.9); else if(state.route.length<2) drawCar(lv.start.x,lv.start.y-42,-Math.PI/2,.72); drawBottom(); drawHint();
   }
 
-  function resetRoute() {
-    state.route = [];
-    state.status = "draw";
-    state.result = null;
-    state.anim.distance = 0;
-    state.anim.money = level().base;
-    refreshStatus();
-    draw();
+  function refresh(){
+    const lv=level(), e=evalRoute(state.route);
+    if(state.screen==="start"){ statusEl.textContent="点击画面开始接单。"; driveBtn.disabled=true; nextBtn.disabled=true; resetBtn.disabled=true; return; }
+    resetBtn.disabled=false;
+    if(state.screen==="hint"){ statusEl.textContent=`本关目标：${lv.wish.item}，需要赚到 ¥${lv.target}。点击画面关闭提示后开始画路线。`; driveBtn.disabled=true; nextBtn.disabled=true; return; }
+    if(state.status==="draw") statusEl.textContent="从黄色起点附近按住拖动。路线会吸附到道路；建筑物、水面和非道路区域不能画。";
+    else if(state.status==="preview"){ const tags=[]; if(e.hitSuspicious?.length) tags.push(`踩雷：${e.hitSuspicious.join("、")}`); if(e.hitExcuse?.length) tags.push(`借口：${e.hitExcuse.join("、")}`); statusEl.textContent=`${e.reason} 预计收入 ¥${e.money}，目标是 ${lv.wish.item}。绕路 ${e.ratio.toFixed(2)}x，怀疑 ${e.suspicion}/100。${tags.join("；")}`; }
+    else if(state.status==="drive") statusEl.textContent="小车正在按路线行驶，收入会随着行驶距离实时上涨。";
+    else if(state.status==="result") statusEl.textContent=e.fail?`被发现了：${e.reason} 可以重画，避开红区或找蓝区做借口。`:e.money>=lv.target?`成功！赚到 ¥${e.money}，可以买到：${lv.wish.item}。`:`安全送达，但只赚到 ¥${e.money}，还没够买：${lv.wish.item}。可以重画再贪一点。`;
+    driveBtn.disabled=!(state.status==="preview"&&e.valid); nextBtn.disabled=state.status!=="result";
   }
 
-  function nextLevel() {
-    if (state.levelIndex < levels.length - 1) {
-      state.levelIndex++;
-      resetRoute();
-    } else {
-      state.levelIndex = 0;
-      resetRoute();
-      statusEl.textContent = "10关已完成，重新从第1关开始。";
-    }
-  }
+  function reset(showHint=false){ state.route=[]; state.drawing=false; state.status="draw"; state.result=null; state.anim.distance=0; state.anim.money=level().base; if(showHint) state.screen="hint"; refresh(); draw(); }
+  function next(){ if(state.levelIndex<levels.length-1) state.levelIndex++; else state.levelIndex=0; reset(true); }
+  function drive(){ const e=evalRoute(state.route); if(!e.valid) return; state.result=e; state.status="drive"; state.anim.distance=0; state.anim.money=level().base; state.anim.lastTime=performance.now(); state.anim.car=pointAt(state.route,0); refresh(); requestAnimationFrame(animate); }
+  function animate(now){ if(state.status!=="drive") return; const e=evalRoute(state.route), total=e.length, dt=Math.min(32,now-state.anim.lastTime); state.anim.lastTime=now; state.anim.distance=Math.min(total,state.anim.distance+state.anim.speed*(dt/16.67)); state.anim.car=pointAt(state.route,state.anim.distance); state.anim.money=level().base+state.anim.distance*level().rate; draw(); if(state.anim.distance<total) requestAnimationFrame(animate); else { state.anim.money=e.money; state.status="result"; state.result=e; refresh(); draw(); } }
+  function warn(reason){ const now=performance.now(); if(now-state.lastWarn>350){ state.lastWarn=now; statusEl.textContent=reason; } }
 
-  function startDriving() {
-    const evalNow = evaluateRoute(state.route);
-    if (!evalNow.valid) return;
-    state.result = evalNow;
-    state.status = "drive";
-    state.anim.distance = 0;
-    state.anim.money = level().base;
-    state.anim.lastTime = performance.now();
-    state.anim.car = pointAtDistance(state.route, 0);
-    refreshStatus();
-    requestAnimationFrame(animateDrive);
-  }
-
-  function animateDrive(now) {
-    if (state.status !== "drive") return;
-
-    const evalNow = evaluateRoute(state.route);
-    const total = evalNow.length;
-    const dt = Math.min(32, now - state.anim.lastTime);
-    state.anim.lastTime = now;
-
-    state.anim.distance += state.anim.speed * (dt / 16.67);
-    state.anim.distance = Math.min(total, state.anim.distance);
-
-    state.anim.car = pointAtDistance(state.route, state.anim.distance);
-    state.anim.money = level().base + state.anim.distance * level().rate;
-
-    draw();
-
-    if (state.anim.distance < total) {
-      requestAnimationFrame(animateDrive);
-    } else {
-      state.anim.money = evalNow.money;
-      state.status = "result";
-      state.result = evalNow;
-      refreshStatus();
-      draw();
-    }
-  }
-
-  function beginDraw(evt) {
-    if (state.status === "drive") return;
+  function down(evt){
     evt.preventDefault();
-
-    const p = getPointerPos(evt);
-    const lv = level();
-
-    if (dist(p, lv.start) <= 55) {
-      state.route = [{ x: lv.start.x, y: lv.start.y }];
-      state.drawing = true;
-      state.status = "draw";
-      state.result = null;
-      refreshStatus();
-      draw();
-    } else {
-      statusEl.textContent = "要从黄色起点附近开始画，不然乘客不上车。";
-    }
+    if(state.screen==="start"){ state.screen="hint"; refresh(); draw(); return; }
+    if(state.screen==="hint"){ state.screen="game"; refresh(); draw(); return; }
+    if(state.status==="drive") return;
+    const p=pointer(evt), lv=level();
+    if(dist(p,lv.start)<=58){ const n=nearestRoad(lv.start); state.route=[n.d<34?{x:n.x,y:n.y}:{x:lv.start.x,y:lv.start.y}]; state.drawing=true; state.status="draw"; state.result=null; refresh(); draw(); }
+    else statusEl.textContent="要从黄色起点附近开始画，不然乘客不上车。";
   }
+  function move(evt){ if(!state.drawing||state.status==="drive"||state.screen!=="game") return; evt.preventDefault(); const s=snap(pointer(evt)); if(!s.ok){ warn(s.reason); return; } const last=state.route[state.route.length-1]; if(!last||dist(last,s.point)>5){ state.route.push(s.point); draw(); } }
+  function up(evt){ if(!state.drawing) return; evt.preventDefault(); state.drawing=false; const lv=level(); if(state.route.length>1&&dist(state.route[state.route.length-1],lv.end)<55){ const n=nearestRoad(lv.end); state.route.push(n.d<34?{x:n.x,y:n.y}:{x:lv.end.x,y:lv.end.y}); } const e=evalRoute(state.route); state.status=e.valid?"preview":"draw"; refresh(); draw(); }
 
-  function moveDraw(evt) {
-    if (!state.drawing || state.status === "drive") return;
-    evt.preventDefault();
-
-    const p = getPointerPos(evt);
-    p.x = Math.max(24, Math.min(W - 24, p.x));
-    p.y = Math.max(142, Math.min(592, p.y));
-
-    const last = state.route[state.route.length - 1];
-    if (!last || dist(last, p) > 6) {
-      state.route.push(p);
-      draw();
-    }
-  }
-
-  function endDraw(evt) {
-    if (!state.drawing) return;
-    evt.preventDefault();
-    state.drawing = false;
-
-    const lv = level();
-    if (state.route.length > 1 && dist(state.route[state.route.length - 1], lv.end) < 48) {
-      state.route.push({ x: lv.end.x, y: lv.end.y });
-    }
-
-    const evalNow = evaluateRoute(state.route);
-    state.status = evalNow.valid ? "preview" : "draw";
-    refreshStatus();
-    draw();
-  }
-
-  function bindEvents() {
-    canvas.addEventListener("mousedown", beginDraw);
-    canvas.addEventListener("mousemove", moveDraw);
-    window.addEventListener("mouseup", endDraw);
-
-    canvas.addEventListener("touchstart", beginDraw, { passive: false });
-    canvas.addEventListener("touchmove", moveDraw, { passive: false });
-    canvas.addEventListener("touchend", endDraw, { passive: false });
-    canvas.addEventListener("touchcancel", endDraw, { passive: false });
-
-    resetBtn.addEventListener("click", resetRoute);
-    driveBtn.addEventListener("click", startDriving);
-    nextBtn.addEventListener("click", nextLevel);
-  }
-
-  bindEvents();
-  resetRoute();
+  canvas.addEventListener("mousedown",down); canvas.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+  canvas.addEventListener("touchstart",down,{passive:false}); canvas.addEventListener("touchmove",move,{passive:false}); canvas.addEventListener("touchend",up,{passive:false}); canvas.addEventListener("touchcancel",up,{passive:false});
+  resetBtn.addEventListener("click",()=>reset(false)); driveBtn.addEventListener("click",drive); nextBtn.addEventListener("click",next);
+  refresh(); draw();
 })();
