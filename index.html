@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
   />
-  <title>Evil Taxi v8</title>
+  <title>Evil Taxi v9</title>
   <style>
     *{
       box-sizing:border-box;
@@ -42,12 +42,14 @@
       padding:6px 8px 8px;
       display:flex;
       flex-direction:column;
+      align-items:center;
       gap:7px;
       overflow:hidden;
     }
 
     .title{
       flex:0 0 auto;
+      width:100%;
       height:34px;
       display:flex;
       justify-content:space-between;
@@ -73,8 +75,10 @@
     }
 
     .board{
-      flex:1 1 auto;
-      min-height:0;
+      flex:0 0 auto;
+      width:var(--board-w,390px);
+      height:var(--board-h,680px);
+      max-width:100%;
       border:3px solid #1d1a16;
       border-radius:20px;
       overflow:hidden;
@@ -92,6 +96,7 @@
 
     .controls{
       flex:0 0 auto;
+      width:100%;
       display:grid;
       grid-template-columns:1fr 1fr 1fr;
       gap:7px;
@@ -125,6 +130,7 @@
 
     .status{
       flex:0 0 auto;
+      width:100%;
       min-height:40px;
       max-height:54px;
       padding:8px 10px;
@@ -139,6 +145,7 @@
 
     .tip{
       flex:0 0 auto;
+      width:100%;
       font-size:11px;
       line-height:1.25;
       color:#604225;
@@ -171,7 +178,7 @@
   <main class="wrap">
     <div class="title">
       <h1>🚕 Evil Taxi</h1>
-      <div class="pill">v8 iPhone适配</div>
+      <div class="pill">v9 等比适配</div>
     </div>
 
     <section class="board">
@@ -192,21 +199,53 @@
   </main>
 
   <script>
-    function setAppHeight(){
-      const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      document.documentElement.style.setProperty("--app-h", h + "px");
+    function setLayoutSize(){
+      var vv = window.visualViewport;
+      var appH = vv ? vv.height : window.innerHeight;
+      var appW = window.innerWidth;
+      document.documentElement.style.setProperty("--app-h", appH + "px");
+
+      var maxWrapW = Math.min(appW, 440);
+      var horizontalPadding = appH < 760 ? 14 : 16;
+      var maxBoardW = Math.max(260, maxWrapW - horizontalPadding);
+
+      // 预留标题、按钮、状态栏、说明和间距的高度。
+      // 小屏会隐藏标题/说明，所以预留值同步降低。
+      var reserved = 174;
+      if(appH < 760) reserved = 104;
+      if(appH < 680) reserved = 86;
+
+      var availableH = Math.max(380, appH - reserved);
+
+      // 关键：永远按 390:680 等比缩放，不让 canvas 被竖向压扁。
+      var ratio = 390 / 680;
+      var boardH = Math.min(680, availableH);
+      var boardW = boardH * ratio;
+
+      if(boardW > maxBoardW){
+        boardW = maxBoardW;
+        boardH = boardW / ratio;
+      }
+
+      document.documentElement.style.setProperty("--board-w", Math.floor(boardW) + "px");
+      document.documentElement.style.setProperty("--board-h", Math.floor(boardH) + "px");
     }
-    setAppHeight();
-    window.addEventListener("resize", setAppHeight);
+
+    setLayoutSize();
+    window.addEventListener("resize", setLayoutSize);
+    window.addEventListener("orientationchange", function(){
+      setTimeout(setLayoutSize, 120);
+    });
+
     if(window.visualViewport){
-      window.visualViewport.addEventListener("resize", setAppHeight);
-      window.visualViewport.addEventListener("scroll", setAppHeight);
+      window.visualViewport.addEventListener("resize", setLayoutSize);
+      window.visualViewport.addEventListener("scroll", setLayoutSize);
     }
 
     document.addEventListener("touchmove", function(e){
       if(e.target && e.target.tagName === "CANVAS") e.preventDefault();
     }, { passive:false });
   </script>
-  <script src="./game.js?v=8"></script>
+  <script src="./game.js?v=9"></script>
 </body>
 </html>
