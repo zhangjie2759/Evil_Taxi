@@ -1,4 +1,4 @@
-// Evil Taxi v7: zoomed-out map + kilometers + hidden fare before driving
+// Evil Taxi v8: iPhone fullscreen responsive layout
 (() => {
   "use strict";
 
@@ -267,16 +267,16 @@
         ? ev.len
         : null;
 
-    rr(14,14,W-28,105,18);
+    rr(14,14,W-28,100,18);
     ctx.fillStyle="#fff8e9";
     ctx.fill();
     ctx.strokeStyle=C.ink;
     ctx.lineWidth=3;
     ctx.stroke();
 
-    text(`${L.name}   ${state.level+1}/10`,28,38,15,950);
-    text(`乘客：${L.passenger}`,28,64,12,850,"left","#5d4025");
-    text(`${L.wish.emoji} 目标：${L.wish.item}  ¥${L.target}`,28,91,12,900,"left","#5d4025");
+    text(`${L.name}   ${state.level+1}/10`,28,36,14,950);
+    text(`乘客：${L.passenger}`,28,61,12,850,"left","#5d4025");
+    text(`${L.wish.emoji} 目标：${L.wish.item}  ¥${L.target}`,28,87,12,900,"left","#5d4025");
 
     rr(276,24,82,40,12);
     ctx.fillStyle="#fff0b8";
@@ -319,7 +319,7 @@
     text(msg.slice(0,42),28,641,13,900,"left");
   }
 
-  function drawStart(){ ctx.clearRect(0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#fff7df"); g.addColorStop(1,"#ffc978"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); ctx.save(); ctx.globalAlpha=.42; ctx.strokeStyle="#fff"; ctx.lineWidth=22; ctx.lineCap="round"; for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(-40,140+i*82);ctx.bezierCurveTo(95,90+i*80,250,230+i*45,430,150+i*86);ctx.stroke()} ctx.strokeStyle="#ffd461"; ctx.lineWidth=11; for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(36+i*72,80);ctx.lineTo(60+i*55,620);ctx.stroke()} ctx.restore(); rr(32,70,W-64,104,28); ctx.fillStyle="rgba(255,250,240,.92)"; ctx.fill(); ctx.strokeStyle=C.ink; ctx.lineWidth=3; ctx.stroke(); text("EVIL TAXI",W/2,105,32,950,"center"); text("绕路司机",W/2,143,22,950,"center","#ff7a1d"); drawCar(W/2,283,0,1.35); rr(52,370,W-104,118,24); ctx.fillStyle="rgba(255,250,240,.92)"; ctx.fill(); ctx.stroke(); text("闯关目标",W/2,399,18,950,"center"); text("赚够司机想买的东西",W/2,429,13,850,"center","#5e3b1e"); text("但别让乘客怀疑爆表",W/2,453,13,850,"center","#5e3b1e"); rr(70,522,W-140,54,24); ctx.fillStyle="#ff8a1f"; ctx.fill(); ctx.stroke(); text("点击开始接单",W/2,549,18,950,"center","#fffaf0"); text("路线图论版 / 10关难度递进",W/2,622,12,900,"center","#6b4b2e"); }
+  function drawStart(){ ctx.clearRect(0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#fff7df"); g.addColorStop(1,"#ffc978"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); ctx.save(); ctx.globalAlpha=.42; ctx.strokeStyle="#fff"; ctx.lineWidth=22; ctx.lineCap="round"; for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(-40,140+i*82);ctx.bezierCurveTo(95,90+i*80,250,230+i*45,430,150+i*86);ctx.stroke()} ctx.strokeStyle="#ffd461"; ctx.lineWidth=11; for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(36+i*72,80);ctx.lineTo(60+i*55,620);ctx.stroke()} ctx.restore(); rr(32,70,W-64,104,28); ctx.fillStyle="rgba(255,250,240,.92)"; ctx.fill(); ctx.strokeStyle=C.ink; ctx.lineWidth=3; ctx.stroke(); text("EVIL TAXI",W/2,105,32,950,"center"); text("绕路司机",W/2,143,22,950,"center","#ff7a1d"); drawCar(W/2,282,0,1.18); rr(52,370,W-104,118,24); ctx.fillStyle="rgba(255,250,240,.92)"; ctx.fill(); ctx.stroke(); text("闯关目标",W/2,399,18,950,"center"); text("赚够司机想买的东西",W/2,429,13,850,"center","#5e3b1e"); text("但别让乘客怀疑爆表",W/2,453,13,850,"center","#5e3b1e"); rr(70,522,W-140,54,24); ctx.fillStyle="#ff8a1f"; ctx.fill(); ctx.stroke(); text("点击开始接单",W/2,549,18,950,"center","#fffaf0"); text("路线图论版 / 10关难度递进",W/2,622,12,900,"center","#6b4b2e"); }
 
   function drawHint(){ if(state.screen!=="hint") return; const L=lv(); ctx.save(); ctx.fillStyle="rgba(29,26,22,.24)"; ctx.fillRect(0,0,W,H); rr(38,210,W-76,238,24); ctx.fillStyle="#fffaf0"; ctx.fill(); ctx.strokeStyle=C.ink; ctx.lineWidth=3; ctx.stroke(); text(`${L.wish.emoji} 本关目标`,W/2,244,20,950,"center"); text(L.wish.item,W/2,280,16,950,"center"); rr(76,310,W-152,40,20); ctx.fillStyle="#fff0b8"; ctx.fill(); ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.stroke(); text(`赚到 ¥${L.target} 且怀疑 < ${L.patience}`,W/2,330,15,950,"center"); text("通关条件",66,376,13,950,"left","#7a5635"); text("1. 必须到达终点",82,400,12,850,"left","#5e3b1e"); text("2. 必须赚够目标金额",82,420,12,850,"left","#5e3b1e"); text("3. 不能被乘客投诉",82,440,12,850,"left","#5e3b1e"); text("点击任意位置关闭提示",W/2,474,13,950,"center",C.blue); ctx.restore(); }
 
