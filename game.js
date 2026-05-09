@@ -1,4 +1,4 @@
-// Evil Taxi v8: iPhone fullscreen responsive layout
+// Evil Taxi v9: iPhone equal-ratio canvas, no vertical squash
 (() => {
   "use strict";
 
