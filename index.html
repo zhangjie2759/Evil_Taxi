@@ -2,20 +2,211 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Evil Taxi v5</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Evil Taxi v8</title>
   <style>
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;min-height:100%;overscroll-behavior:none;background:linear-gradient(180deg,#fff7e8,#ead9b8);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif;color:#1d1a16}.wrap{width:min(100vw,440px);margin:0 auto;padding:10px 10px 16px}.title{display:flex;justify-content:space-between;align-items:center;padding:8px 4px}.title h1{margin:0;font-size:20px;letter-spacing:.02em}.pill{font-size:12px;font-weight:900;background:#1d1a16;color:#fff8eb;border-radius:999px;padding:6px 9px}.board{border:3px solid #1d1a16;border-radius:22px;overflow:hidden;background:#f6f4ec;box-shadow:0 8px 0 rgba(29,26,22,.15)}canvas{display:block;width:100%;height:auto;touch-action:none}.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding-top:12px}button{border:3px solid #1d1a16;border-radius:16px;min-height:48px;background:#fffaf0;color:#1d1a16;font-size:15px;font-weight:900;box-shadow:0 5px 0 rgba(29,26,22,.16)}button.primary{background:linear-gradient(180deg,#ffe174,#ff8c1f)}button:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(29,26,22,.16)}button:disabled{opacity:.42}.status{margin-top:10px;min-height:46px;padding:10px 12px;border:3px solid #1d1a16;border-radius:16px;background:#fffaf0;font-size:13px;line-height:1.38;font-weight:800}.tip{margin-top:8px;font-size:12px;line-height:1.45;color:#604225;padding:0 4px}.tip b{color:#1d1a16}
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+      -webkit-touch-callout:none;
+      user-select:none;
+    }
+
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      overscroll-behavior:none;
+      background:linear-gradient(180deg,#fff7e8,#ead9b8);
+      font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif;
+      color:#1d1a16;
+      position:fixed;
+      inset:0;
+    }
+
+    body{
+      height:100dvh;
+      height:var(--app-h,100dvh);
+      padding-top:env(safe-area-inset-top);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+
+    .wrap{
+      width:min(100vw,440px);
+      height:calc(var(--app-h,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      margin:0 auto;
+      padding:6px 8px 8px;
+      display:flex;
+      flex-direction:column;
+      gap:7px;
+      overflow:hidden;
+    }
+
+    .title{
+      flex:0 0 auto;
+      height:34px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:0 2px;
+    }
+
+    .title h1{
+      margin:0;
+      font-size:18px;
+      line-height:1;
+      letter-spacing:.02em;
+    }
+
+    .pill{
+      font-size:11px;
+      font-weight:900;
+      background:#1d1a16;
+      color:#fff8eb;
+      border-radius:999px;
+      padding:5px 8px;
+      white-space:nowrap;
+    }
+
+    .board{
+      flex:1 1 auto;
+      min-height:0;
+      border:3px solid #1d1a16;
+      border-radius:20px;
+      overflow:hidden;
+      background:#f6f4ec;
+      box-shadow:0 5px 0 rgba(29,26,22,.15);
+    }
+
+    canvas{
+      display:block;
+      width:100%;
+      height:100%;
+      touch-action:none;
+      background:#f6f4ec;
+    }
+
+    .controls{
+      flex:0 0 auto;
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:7px;
+    }
+
+    button{
+      appearance:none;
+      border:3px solid #1d1a16;
+      border-radius:14px;
+      height:44px;
+      background:#fffaf0;
+      color:#1d1a16;
+      font-size:14px;
+      font-weight:900;
+      box-shadow:0 4px 0 rgba(29,26,22,.16);
+      padding:0 6px;
+    }
+
+    button.primary{
+      background:linear-gradient(180deg,#ffe174,#ff8c1f);
+    }
+
+    button:active{
+      transform:translateY(2px);
+      box-shadow:0 2px 0 rgba(29,26,22,.16);
+    }
+
+    button:disabled{
+      opacity:.42;
+    }
+
+    .status{
+      flex:0 0 auto;
+      min-height:40px;
+      max-height:54px;
+      padding:8px 10px;
+      border:3px solid #1d1a16;
+      border-radius:14px;
+      background:#fffaf0;
+      font-size:12px;
+      line-height:1.28;
+      font-weight:850;
+      overflow:hidden;
+    }
+
+    .tip{
+      flex:0 0 auto;
+      font-size:11px;
+      line-height:1.25;
+      color:#604225;
+      padding:0 4px 2px;
+      max-height:32px;
+      overflow:hidden;
+    }
+
+    .tip b{color:#1d1a16;}
+
+    @media (max-height:760px){
+      .wrap{gap:5px;padding:5px 7px 7px;}
+      .title{height:30px;}
+      .title h1{font-size:17px;}
+      .pill{font-size:10px;padding:4px 7px;}
+      button{height:40px;font-size:13px;border-radius:13px;}
+      .status{min-height:36px;max-height:44px;font-size:11px;padding:7px 9px;}
+      .tip{display:none;}
+      .board{border-radius:18px;}
+    }
+
+    @media (max-height:680px){
+      .title{display:none;}
+      button{height:38px;}
+      .status{min-height:34px;max-height:38px;}
+    }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="title"><h1>🚕 Evil Taxi</h1><div class="pill">v5 闯关版</div></div>
-    <section class="board"><canvas id="game" width="390" height="680"></canvas></section>
-    <div class="controls"><button id="resetBtn">重画路线</button><button id="driveBtn" class="primary" disabled>开始开车</button><button id="nextBtn" disabled>下一关</button></div>
+    <div class="title">
+      <h1>🚕 Evil Taxi</h1>
+      <div class="pill">v8 iPhone适配</div>
+    </div>
+
+    <section class="board">
+      <canvas id="game" width="390" height="680"></canvas>
+    </section>
+
+    <div class="controls">
+      <button id="resetBtn">重画路线</button>
+      <button id="driveBtn" class="primary" disabled>开始开车</button>
+      <button id="nextBtn" disabled>下一关</button>
+    </div>
+
     <div id="status" class="status">点击画面开始接单。</div>
-    <div class="tip"><b>玩法：</b>像导航一样沿道路画路线。赚够目标金额且怀疑值不爆表才能通关；建筑、河面、非道路区域不能走。</div>
+
+    <div class="tip">
+      <b>玩法：</b>沿道路画路线；发车后才揭晓收入和公里数。赚够目标金额且怀疑值不爆表才能通关。
+    </div>
   </main>
-  <script src="./game.js?v=7"></script>
+
+  <script>
+    function setAppHeight(){
+      const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty("--app-h", h + "px");
+    }
+    setAppHeight();
+    window.addEventListener("resize", setAppHeight);
+    if(window.visualViewport){
+      window.visualViewport.addEventListener("resize", setAppHeight);
+      window.visualViewport.addEventListener("scroll", setAppHeight);
+    }
+
+    document.addEventListener("touchmove", function(e){
+      if(e.target && e.target.tagName === "CANVAS") e.preventDefault();
+    }, { passive:false });
+  </script>
+  <script src="./game.js?v=8"></script>
 </body>
 </html>
